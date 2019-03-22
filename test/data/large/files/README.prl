@@ -1,0 +1,233 @@
+Thm BoolTest : [
+  (-> wbool wbool)
+] by [
+  // A term/witness can be supplied to the refiner at any point in a tactic script
+  // using the quotation operator `.
+  (lam x => if x then `tt else `ff); auto
+].
+
+
+Thm PathTest : [
+  (path [_] S1 base base)
+] by [
+  abs x => `(loop x)
+].
+
+Thm LowLevel : [
+  (->
+    (-> wbool wbool)
+    wbool)
+] by [
+  fresh f -> refine fun/intro;
+  [fresh x x/eq -> elim f;
+  [`tt, use x],
+  refine fun/eqtype;
+  refine wbool/eqtype]
+].
+
+Extract LowLevel.
+
+Thm LowLevel2 : [
+  (->
+    (-> wbool wbool)
+    wbool)
+] by [
+  fresh f -> repeat {refine fun/intro; [id, auto]};
+  fresh x x/eq -> elim f;
+  [`tt, use x]
+].
+
+Extract LowLevel2.
+
+Thm FunElimTest : [
+  (->
+   (-> wbool wbool)
+   wbool)
+] by [
+  lam f => use f [`tt]
+].
+
+Thm S1ElimTest : [ (-> S1 S1) ] by [
+  lam s =>
+    case s of 
+       base => `base
+     | loop x => `(loop x)
+].
+
+Tac Try(#t : tac) = [
+  #t || id
+].
+
+// Useful for stepping through a proof RedPRL completes automatically, to see
+// what is being done.
+Tac TryStep = [
+  // We can call our Try tactical. But tactics are parsed with a different grammar than terms,
+  // so to avoid ambiguity, when we need to provide a tactic expression as an argument to 
+  // an operator, we wrap it in (tactic ....).
+  (Try #tac{auto-step})
+].
+
+// 'wif' stands for "weak if", which is the recursor for the weak booleans. It differs
+// from ordinary 'if' in that it must take the motive of induction as an argument;
+// this is computationally relevant in the case of hcoms.
+Def BoolEta(#M) = [
+  (wif [a] wbool #M tt ff)
+].
+
+Print BoolEta.
+
+// But note that if we define such a function in the refiner using tactics, we can use the
+// built-in 'if x then t1 else t2' tactical, and the extracted witness will be a 'wif' form
+// with the motive already filled in.
+Thm BoolEtaFunction : [
+  (-> wbool wbool)
+] by [
+  (lam b => if b then `tt else `ff); auto
+].
+
+Extract BoolEtaFunction.
+
+// Let's prove the existence of a path between the identity function
+// on booleans, and the function that takes a boolean to a vacuous if
+// statement.
+//
+// The most fun way to use RedPRL is interactively! We will write our
+// proof in the development calculus. The advantage of this style of
+// proof is that we can leave holes, and interactively figure out what
+// we need to do.
+//
+Thm PathTest2 : [
+  (path
+    [_] (-> wbool wbool)
+    (lam [b] b)
+    (lam [b] (BoolEta b)))
+] by [
+  // abstract a dimension
+  abs x =>
+    // now, we are constructing a line of functions; so we use a
+    // lambda.
+    (lam b =>
+      // for our b:wbool, we will construct a path between b and
+      // (BoolEta b).
+      claim p : [(path [_] wbool b (BoolEta b))] by [
+        if b then abs y => `tt else abs y => `ff
+      ];
+
+      // Now, we will project the 'x'-side of our path. In the
+      // interactive tactic environment, dimension expressions are
+      // supplied to the refiner using the '@' "dimension quotation"
+      // operator.
+      use p [`x]);
+     auto
+].
+
+// It turns out that it is just as good to figure out what the witness
+// program for this path is by hand, and then tell RedPRL to try and
+// prove that it does in fact witness this path.  This approach is not
+// preferred, because it is not interactive: you must know ahead of
+// time the entirety of the program, and cannot take advantage of
+// types in order to guide its construction, or even synthesize part
+// of it.
+Thm PathTest3 : [
+  (path
+    [_] (-> wbool wbool)
+    (lam [b] b)
+    (lam [b] (BoolEta b)))
+] by [
+  // I'm surprised that RedPRL can typecheck this properly! Quite
+  // encouraging.
+  `(abs [x]
+    (lam [b]
+     (@ (wif [b] (path [_] wbool b (BoolEta b)) b (abs [_] tt) (abs [_] ff))
+        x)))
+].
+
+Print PathTest3.
+
+Thm PairTest : [ (* [a : S1] (path [_] S1 a base)) ] by [
+  {`base, abs x => `(loop x)}
+].
+
+
+Def Cmp(#f, #g) = [
+  (lam [x] ($ #f ($ #g x)))
+].
+
+
+Def MyLoop(#x:dim, #m) = [
+  (tuple [proj1 #m] [proj2 (loop #x)])
+].
+
+Def Test = [
+  (MyLoop (dim 0) (loop 1))
+].
+
+Print Test.
+
+Thm SNot : [(-> bool bool)] by [
+  lam b => if b then `ff else `tt
+].
+
+Thm StrictBoolTest : [ SNot = (Cmp SNot (Cmp SNot SNot)) in (-> bool bool) ] by [
+  auto
+].
+
+Thm Not : [(-> [_ : wbool] wbool)] by [
+  (lam x => if x then `ff else `tt); auto
+].
+
+Thm FunExt(#l:lvl) : [
+  (->
+   [a b : (U #l)]
+   [f g : (-> a b)]
+   [p : (-> [y : a] (path [_] b ($ f y) ($ g y)))]
+   (path [_] (-> a b) f g))
+] by [
+  lam a b f g p =>
+    abs i => lam x => use p [use x, `i]
+].
+
+Print FunExt.
+
+Tac FunExtTac(#l : lvl) = [
+  query gl <- concl;
+  match gl {
+    [a b f g k | #jdg{(path [_] (-> %a %b) %f %g) true with %[k:knd]} =>
+      use (FunExt #l) [`%a, `%b, `%f, `%g, id]
+    ]
+  }
+].
+
+Print FunExtTac.
+
+Thm NotNotPath : [(path [_] (-> wbool wbool) (Cmp Not Not) (lam [x] x))] by [
+  (FunExtTac #lvl{0});
+  (lam x => if x then abs _ => `tt else abs _ => `ff);
+  auto
+].
+
+Extract NotNotPath.
+Print FunExtTac.
+Print NotNotPath.
+
+Thm Singleton : [(* [x : wbool] (path [_] wbool x tt))] by [
+  {`tt, abs _ => `tt}
+].
+
+Thm PathElimTest : [(-> (path [_] bool tt tt) bool)] by [
+  lam x => use x [`(dim 0)]
+].
+
+Thm PathEta(#l:lvl) : [
+  (->
+   [a : (U #l)]
+   [m n : a]
+   (path [_] a m n)
+   (path [_] a m n))
+] by [
+  lam a m n p => abs j => use p [`j]
+].
+
+Print PathEta.
+
+Print PathElimTest.
