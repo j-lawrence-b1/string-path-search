@@ -7,10 +7,10 @@ Usage:
 <pre>
     python3 scanner.py [OPTIONS] <scan-root> [<search-term> [...]]
     where:
-        -a, --unpack-archives = Unpack and scan within archives
-            (Default: Arhives will NOT be uncompressed and will be scanned
-            as a single file). LIMITATIONS: Only zip and tar archives will be
-            unpacked. Only gzip and bzip2 tar compression methods are supported.
+        -a, --scan-archives = Unpack and scan within archives
+            (Default: Skip arhive files. LIMITATIONS: Only zip and tar archives 
+            can be scanned. Only gzip and bzip2 tar compression methods 
+            are supported.
         -B, --branding-text=<branding-text> = A string of text containing
             company or other information to add above the column headers in
             scan reports (Default: no text).
