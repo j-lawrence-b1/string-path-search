@@ -175,7 +175,7 @@ class Scanner:
             path = self.scan_root
         logger.info("Walking directory tree={0}".format(path))
         for entry in os.scandir(path):
-            if os.path.basename(entry.path) in self.exclusions:
+            if os.path.basename(entry.path).casefold() in self.exclusions:
                 continue
             if entry.is_dir(follow_symlinks=False):
                 yield from self._dir_walk(entry.path)
@@ -207,7 +207,7 @@ class Scanner:
                 name = info.filename
                 if DIR_REGEX.search(name):
                     continue
-                if os.path.basename(name) in self.exclusions:
+                if os.path.basename(name).casefold() in self.exclusions:
                     continue
                 if ARCH_REGEX.search(name):
                     extract_dir = os.path.join(self.temp_dir, random_string())
@@ -263,7 +263,7 @@ class Scanner:
                 if entry.isdir():
                     continue
                 elif entry.isreg():
-                    if os.path.basename(entry.name) in self.exclusions:
+                    if os.path.basename(entry.name).casefold() in self.exclusions:
                         continue
                     if ARCH_REGEX.search(entry.name):
                         extract_dir = os.path.join(self.temp_dir, random_string())
@@ -587,7 +587,7 @@ def main(sys_args):
             sys.exit(2)
         with open(exclusions_file, "rt", encoding="utf-8") as f:
             for line in f:
-                exclusions.add(line.strip())
+                exclusions.add(line.strip().casefold())
 
     # Process positional parameters.
     if not args:
