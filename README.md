@@ -24,15 +24,14 @@ Usage:
             (Default: case differences are significant).
         -o, --output-dir=<output-dir> = Location for output (Default:
             <current working directory>).
-        -s, --search-strings-file=<search-strings> = A file containing 
-        strings to
-        search for, one per line (No Default).
+        -s, --search-strings-file=<search-strings> = A file containing strings to
+            search for, one per line (Default: Get search strings from the command line).
         -q, --quiet = Decrease logging verbosity (may repeat). -vvvv will suppress all logging.
         -t, --temp-dir=<temp-dir> = Location for unpacking archives
             (Default: <output_dir>/temp).
         -v, --verbose = Increase logging verbosity.
-        -x, --exclusions-file=<exclusion-file> = A file containing filenames to
-            exclude from the search results.
+        -x, --exclusions-file=<exclusion-file> = A file containing (base) filenames to
+            exclude from the search results, one per line (Default: Scan all files).
     <scan-root> = Directory to scan (No Default).
     <search-term> ... = One or more terms to search for in <scan-root>.
 </pre>

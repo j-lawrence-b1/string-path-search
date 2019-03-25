@@ -472,7 +472,7 @@ def print_usage():
         -t, --temp-dir=<temp-dir> = Location for unpacking archives
             (Default: <output_dir>/temp).
         -v, --verbose = Increase logging verbosity.
-        -x, --exclusions-file=<exclusion-file> = A file containing filenames to
+        -x, --exclusions-file=<exclusion-file> = A file containing (base) filenames to
             exclude from the search results.
     <scan-root> = Directory to scan (No Default).
     <search-string> ... = One or more terms to search for in <scan-root>.
