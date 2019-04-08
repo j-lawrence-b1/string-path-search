@@ -489,7 +489,7 @@ def main(sys_args):
 
     # Set program defaults.
     branding_text = None
-    branding_file = None
+    branding_logo = None
     excel_output = True
     ignore_case = True
     log_level = logging.INFO
