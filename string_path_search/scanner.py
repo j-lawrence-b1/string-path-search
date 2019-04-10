@@ -80,8 +80,7 @@ def eprint(*args, **kwargs):
 
 def random_string(length=5):
     """Return a random string of the desired length."""
-    return ''.join(random.choices(string.ascii_uppercase + string.digits,
-                                  k=length))
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
 
 def calculate_md5(str):
     """Calculate the md5 digest of a string"""
@@ -90,7 +89,8 @@ def calculate_md5(str):
     return m.hexdigest()
 
 def make_dir_safe(path, raise_errors=True):
-    """Create a directory. Optionally, suppress exceptions.
+    """
+    Create a directory. Optionally, suppress exceptions.
 
     Args:
         path -- The directory to create.
@@ -99,18 +99,54 @@ def make_dir_safe(path, raise_errors=True):
     """
     if os.path.isdir(path):
         return path
+
     try:
         os.makedirs(path)
     except OSError as exc:
         if exc.errno == errno.EEXIST and os.path.isdir(path):
             return path
         else:
-            logger.info("ERROR: Path={0} does not exist and cannot be created. "
-                   "Errno={1}".format(path, exc.errno))
+            logger.info("ERROR: Path={0} does not exist and cannot be created. Errno={1}".format(path, exc.errno))
             if raise_errors:
                 raise
             else:
                 return ''
+
+def dispatch_on_value(func):
+    """
+    Value-dispatch function decorator.
+
+    Transforms a function into a value-dispatch function,
+    which can have different behaviors based on the value of the first
+    argument.
+    """
+    registry = {}
+
+    def dispatch(value):
+        """Dispatch something"""
+        try:
+            return registry[value]
+        except KeyError:
+            return func
+
+    def register(value, func=None):
+        """Register something"""
+        if func is None:
+            return lambda f: register(value, f)
+
+        registry[value] = func
+
+        return func
+
+    def wrapper(*args, **kwargs):
+        """Wrap something"""
+        return dispatch(args[0])(*args, **kwargs)
+
+    wrapper.register = register
+    wrapper.dispatch = dispatch
+    wrapper.registry = registry
+
+    return wrapper
 
 class Scanner:
     """Class to scan a directory tree for a set of strings"""
@@ -169,26 +205,30 @@ class Scanner:
         self.scan_archives = scan_archives
         self.ignore_case = ignore_case
 
+    def _walk(self, thing=None, parent=None):
+        """Walk a tree based on thing."""
+        if not thing:
+            thing = self.scan_root
+        if self.scan_archives and ZIP_REGEX.search(thing):
+            yield from self._zip_walk(thing, parent)
+        elif self.scan_archives and TAR_REGEX.search(thing):
+            yield from self._tar_walk(thing, parent)
+        elif os.path.isdir(thing):
+            yield from self._dir_walk(thing)
+        else:
+            f = open(thing, 'rb')
+            file_bytes = f.read()
+            yield(os.path.basename(thing),
+                  os.path.join(self.scan_root, os.path.dirname(thing)),
+                  calculate_md5(file_bytes), file_bytes)
+
     def _dir_walk(self, path):
-        """Generate file objects from a recursive scan_root scan."""
-        if not path:
-            path = self.scan_root
-        logger.info("Walking directory tree={0}".format(path))
+        """Walk a directory."""
+        logger.info("Walking dir={0}".format(path))
         for entry in os.scandir(path):
             if os.path.basename(entry.path).casefold() in self.exclusions:
                 continue
-            if entry.is_dir(follow_symlinks=False):
-                yield from self._dir_walk(entry.path)
-            elif self.scan_archives and ZIP_REGEX.search(entry.path):
-                yield from self._zip_walk(entry.path)
-            elif self.scan_archives and TAR_REGEX.search(entry.path):
-                yield from self._tar_walk(entry.path)
-            else:
-                f = open(entry.path, 'rb')
-                file_bytes = f.read()
-                yield(os.path.basename(entry.path),
-                    os.path.join(self.scan_root, os.path.dirname(entry.path)),
-                    calculate_md5(file_bytes), file_bytes)
+            yield from self._walk(entry.path)
 
     def _zip_walk(self, zip_file, parent=None):
         """
@@ -215,10 +255,8 @@ class Scanner:
                     inner_archive = os.path.join(extract_dir, name )
                     try:
                         zip_archive.extract(name, extract_dir)
-                        if TAR_REGEX.search(name):
-                            yield from self._tar_walk(inner_archive, parent)
-                        elif ZIP_REGEX.search(name):
-                            yield from self._zip_walk(inner_archive, parent)
+                        if ARCH_REGEX.search(name):
+                            yield from self._walk(inner_archive, parent)
                     except BaseException as exc:
                         # Todo: Catalog actual exceptions and refine this
                         #  clause.
@@ -271,10 +309,8 @@ class Scanner:
                         inner_archive = os.path.join(extract_dir, entry.name )
                         try:
                             tar_archive.extract(entry, extract_dir)
-                            if TAR_REGEX.search(inner_archive):
-                                yield from self._tar_walk(inner_archive, parent)
-                            elif ZIP_REGEX.search(inner_archive):
-                                yield from self._zip_walk(inner_archive, parent)
+                            if ARCH_REGEX.search(inner_archive):
+                                yield from self._walk(inner_archive, parent)
                         except BaseException as exc:
                             logger.error("Caught an exception of type={0} "
                                          "while processing inner archive {1}"
@@ -322,6 +358,7 @@ class Scanner:
             if normal_str in file_str:
                 yield search_str
 
+
     def scan(self):
         """Scan scan_root and print matches."""
 
@@ -330,7 +367,7 @@ class Scanner:
         self.scan_results = {}
         md5s = set()
         self.stats = {'files_scanned': 0, 'files_matched': 0}
-        for name, path, md5, file_bytes in self._dir_walk(None):
+        for name, path, md5, file_bytes in self._walk(None):
             self.stats['files_scanned'] += 1
             if self.stats['files_scanned'] % 1000 == 0:
                 logger.info("Matched {0} of {1} files scanned so " 
