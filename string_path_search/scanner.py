@@ -184,11 +184,21 @@ class Scanner:
         elif os.path.isdir(thing):
             yield from self._dir_walk(thing)
         else:
-            f = open(thing, 'rb')
-            file_bytes = f.read()
-            yield(os.path.basename(thing),
-                  os.path.join(self.scan_root, os.path.dirname(thing)),
-                  calculate_md5(file_bytes), file_bytes)
+            if not os.path.isfile(thing):
+                logger.warning("Thing '{0}' is neither a directory nor is "
+                               "it a file".format(thing))
+                return
+
+            try:
+                f = open(thing, 'rb')
+                file_bytes = f.read()
+                return (os.path.basename(thing),
+                        os.path.join(self.scan_root, os.path.dirname(thing)),
+                        calculate_md5(file_bytes), file_bytes)
+                close(f)
+            except FileNotFoundError:
+                logger.error("Can't open file = '{0}'".format(thing))
+                return
 
     def _dir_walk(self, path):
         """Walk a directory."""
@@ -325,7 +335,6 @@ class Scanner:
         for normal_str, search_str in self.search_strings:
             if normal_str in file_str:
                 yield search_str
-
 
     def scan(self):
         """Scan scan_root and print matches."""
