@@ -68,7 +68,8 @@ import xlsxwriter
 DIR_REGEX = re.compile(r'[/]$')
 TAR_REGEX = re.compile(r'\.(?:tar|tar.gz|tgz|tar.bzip2|tar.bz2|tbz2)$')
 ZIP_REGEX = re.compile(r'\.zip$')
-ARCH_REGEX = re.compile(r'\.(?:tar|tar.gz|tgz|tar.bzip2|tar.bz2|tbz2|zip)')
+ARCH_REGEX = re.compile(r'\.(?:cab|cpio|ear|jar|rpm|tar|tar.gz|tgz|tar.bzip2'
+                        r'|tar.bz2|tbz2|war|zip)$')
 
 # Define global variables.
 logger = logging.getLogger(__name__)
@@ -111,42 +112,6 @@ def make_dir_safe(path, raise_errors=True):
                 raise
             else:
                 return ''
-
-def dispatch_on_value(func):
-    """
-    Value-dispatch function decorator.
-
-    Transforms a function into a value-dispatch function,
-    which can have different behaviors based on the value of the first
-    argument.
-    """
-    registry = {}
-
-    def dispatch(value):
-        """Dispatch something"""
-        try:
-            return registry[value]
-        except KeyError:
-            return func
-
-    def register(value, func=None):
-        """Register something"""
-        if func is None:
-            return lambda f: register(value, f)
-
-        registry[value] = func
-
-        return func
-
-    def wrapper(*args, **kwargs):
-        """Wrap something"""
-        return dispatch(args[0])(*args, **kwargs)
-
-    wrapper.register = register
-    wrapper.dispatch = dispatch
-    wrapper.registry = registry
-
-    return wrapper
 
 class Scanner:
     """Class to scan a directory tree for a set of strings"""
@@ -213,6 +178,9 @@ class Scanner:
             yield from self._zip_walk(thing, parent)
         elif self.scan_archives and TAR_REGEX.search(thing):
             yield from self._tar_walk(thing, parent)
+        elif ARCH_REGEX.search(thing):
+            if self.scan_archives:
+                logger.warning("Skipping unsupported archive {0}".format(thing))
         elif os.path.isdir(thing):
             yield from self._dir_walk(thing)
         else:
