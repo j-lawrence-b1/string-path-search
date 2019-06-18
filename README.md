@@ -11,10 +11,10 @@ Usage:
             (Default: Skip arhive files. LIMITATIONS: Only zip and tar archives 
             can be scanned. Only bzip2 ('.bz2'), gzip ('.gz'), and lzma ('.xz') tar
             compression methods are supported.
-        -B, --branding-text=<branding-text&gt; = A string of text containing
+        -B, --branding-text=&lt;branding-text&gt; = A string of text containing
             company or other information to add above the column headers in
             scan reports (Default: no text).
-        -b, --branding-logo=<branding-logo&gt; = (MS Excel only) An image
+        -b, --branding-logo=&lt;branding-logo&gt; = (MS Excel only) An image
             file containing a corporate logo or other graphic to add above the
             column headers in scan reports (Default: no logo).
         -h, --help = Print usage information and exit.
