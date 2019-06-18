@@ -5,12 +5,12 @@ Installation:
 
 Usage:
 <pre>
-    python3 scanner.py [OPTIONS] <scan-root> [<search-term> [...]]
+    python3 scanner.py [OPTIONS] &lt;scan-root&gt; [&lt;search-term&gt; [...]]
     where:
         -a, --scan-archives = Unpack and scan within archives
             (Default: Skip arhive files. LIMITATIONS: Only zip and tar archives 
-            can be scanned. Only gzip and bzip2 tar compression methods 
-            are supported.
+            can be scanned. Only bzip2 ('.bz2'), gzip ('.gz'), and lzma ('.xz') tar
+            compression methods are supported.
         -B, --branding-text=<branding-text> = A string of text containing
             company or other information to add above the column headers in
             scan reports (Default: no text).
@@ -32,8 +32,8 @@ Usage:
         -v, --verbose = Increase logging verbosity.
         -x, --exclusions-file=<exclusion-file> = A file containing (base) filenames to
             exclude from the search results, one per line (Default: Scan all files).
-    <scan-root> = Directory to scan (No Default).
-    <search-term> ... = One or more terms to search for in <scan-root>.
+    &lt;scan-root&gt; = Directory to scan (No Default).
+    &lt;search-term&gt; ... = One or more terms to search for in <scan-root>.
 </pre>
 Examples:
 
