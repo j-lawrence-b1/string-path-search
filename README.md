@@ -11,10 +11,10 @@ Usage:
             (Default: Skip arhive files. LIMITATIONS: Only zip and tar archives 
             can be scanned. Only bzip2 ('.bz2'), gzip ('.gz'), and lzma ('.xz') tar
             compression methods are supported.
-        -B, --branding-text=<branding-text> = A string of text containing
+        -B, --branding-text=<branding-text&gt; = A string of text containing
             company or other information to add above the column headers in
             scan reports (Default: no text).
-        -b, --branding-logo=<branding-logo> = (MS Excel only) An image
+        -b, --branding-logo=<branding-logo&gt; = (MS Excel only) An image
             file containing a corporate logo or other graphic to add above the
             column headers in scan reports (Default: no logo).
         -h, --help = Print usage information and exit.
@@ -22,18 +22,18 @@ Usage:
             (Default: Generate comma-separated-value (CSV) text output)
         -i  --ingore-case = Ignore UPPER/lowercase differences when matching strings
             (Default: case differences are significant).
-        -o, --output-dir=<output-dir> = Location for output (Default:
-            <current working directory>).
-        -s, --search-strings-file=<search-strings> = A file containing strings to
+        -o, --output-dir=&lt;output-dir&gt; = Location for output (Default:
+            &lt;current working directory&gt;).
+        -s, --search-strings-file=&lt;search-strings&gt; = A file containing strings to
             search for, one per line (Default: Get search strings from the command line).
         -q, --quiet = Decrease logging verbosity (may repeat). -vvvv will suppress all logging.
-        -t, --temp-dir=<temp-dir> = Location for unpacking archives
-            (Default: <output_dir>/temp).
+        -t, --temp-dir=&lt;temp-dir&gt; = Location for unpacking archives
+            (Default: &lt;output_dir&gt;/temp).
         -v, --verbose = Increase logging verbosity.
-        -x, --exclusions-file=<exclusion-file> = A file containing (base) filenames to
+        -x, --exclusions-file=&lt;exclusion-file&gt; = A file containing (base) filenames to
             exclude from the search results, one per line (Default: Scan all files).
     &lt;scan-root&gt; = Directory to scan (No Default).
-    &lt;search-term&gt; ... = One or more terms to search for in <scan-root>.
+    &lt;search-term&gt; ... = One or more terms to search for in &lt;scan-root&gt;.
 </pre>
 Examples:
 
