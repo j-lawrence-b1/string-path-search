@@ -43,10 +43,9 @@ Todo:
 """
 
 # Import Python standard modules.
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 import codecs
 import csv
-import errno
 import hashlib
 import getopt
 import logging
@@ -72,22 +71,26 @@ ARCH_REGEX = re.compile(r'\.(?:cab|cpio|ear|jar|rpm|tar|tar.gz|tgz|tar.bzip2'
                         r'|tar.bz2|tbz2|war|zip)$')
 
 # Define global variables.
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
+
 
 # Define global methods.
 def eprint(*args, **kwargs):
     """Print to stderr."""
     print(*args, file=sys.stderr, **kwargs)
 
+
 def random_string(length=5):
     """Return a random string of the desired length."""
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
 
-def calculate_md5(str):
+
+def calculate_md5(my_str):
     """Calculate the md5 digest of a string"""
-    m = hashlib.md5()
-    m.update(str)
-    return m.hexdigest()
+    md5 = hashlib.md5()
+    md5.update(my_str)
+    return md5.hexdigest()
+
 
 def make_dir_safe(path, raise_errors=True):
     """
@@ -102,16 +105,17 @@ def make_dir_safe(path, raise_errors=True):
         return path
 
     try:
-        os.makedirs(path)
+        os.makedirs(path, True)
     except OSError as exc:
-        if exc.errno == errno.EEXIST and os.path.isdir(path):
-            return path
+        LOGGER.info("ERROR: Path=%s does not exist and cannot be created. Errno=%d", path,
+                    exc.errno)
+        if raise_errors:
+            raise
         else:
-            logger.info("ERROR: Path={0} does not exist and cannot be created. Errno={1}".format(path, exc.errno))
-            if raise_errors:
-                raise
-            else:
-                return ''
+            return ''
+
+    return path
+
 
 class Scanner:
     """Class to scan a directory tree for a set of strings"""
@@ -124,9 +128,7 @@ class Scanner:
                  exclusions=None,
                  scan_archives=False,
                  temp_dir=None,
-                 ignore_case=False,
-                 output_file=None,
-                 branding=None):
+                 ignore_case=False):
         """
         Setup the class instance.
 
@@ -148,7 +150,7 @@ class Scanner:
                            matching text (Default: Treat case as significant).
         """
         if sys.version_info[0] + sys.version_info[1] / 10 < 3.4:
-            logger.error("ERROR: This script requires Python 3.4 or greater.")
+            LOGGER.error("ERROR: This script requires Python 3.4 or greater.")
             sys.exit(-1)
 
         if not os.path.isdir(scan_root):
@@ -169,6 +171,8 @@ class Scanner:
         self.exclusions = exclusions
         self.scan_archives = scan_archives
         self.ignore_case = ignore_case
+        self.scan_results = {}
+        self.stats = {}
 
     def _walk(self, thing=None, parent=None):
         """Walk a tree based on thing."""
@@ -180,29 +184,27 @@ class Scanner:
             yield from self._tar_walk(thing, parent)
         elif ARCH_REGEX.search(thing):
             if self.scan_archives:
-                logger.warning("Skipping unsupported archive {0}".format(thing))
+                LOGGER.warning("Skipping unsupported archive %s", thing)
         elif os.path.isdir(thing):
             yield from self._dir_walk(thing)
         else:
             if not os.path.isfile(thing):
-                logger.warning("Thing '{0}' is neither a directory nor is "
-                               "it a file".format(thing))
+                LOGGER.warning("Thing '%s' is neither a directory nor is it a file", thing)
                 return
 
             try:
-                f = open(thing, 'rb')
-                file_bytes = f.read()
-                return (os.path.basename(thing),
-                        os.path.join(self.scan_root, os.path.dirname(thing)),
-                        calculate_md5(file_bytes), file_bytes)
-                close(f)
+                with open(thing, 'rb') as fid:
+                    file_bytes = fid.read()
+                    yield (os.path.basename(thing),
+                           os.path.join(self.scan_root, os.path.dirname(thing)),
+                           calculate_md5(file_bytes), file_bytes)
             except FileNotFoundError:
-                logger.error("Can't open file = '{0}'".format(thing))
+                LOGGER.error("Can't open file=%s", thing)
                 return
 
     def _dir_walk(self, path):
         """Walk a directory."""
-        logger.info("Walking dir={0}".format(path))
+        LOGGER.info("Walking dir=%s", path)
         for entry in os.scandir(path):
             if os.path.basename(entry.path).casefold() in self.exclusions:
                 continue
@@ -216,7 +218,7 @@ class Scanner:
             zip_file -- The full path to the .zip file to scan.
             parent - The root for the extraction if this is an inner archive.
         """
-        logger.info("Walking zip file={0}".format(zip_file))
+        LOGGER.info("Walking zip file=%s", zip_file)
         # Pseudo-path, don't use os.path.join().
         parent = '/'.join([parent, os.path.basename(zip_file)]) if parent \
             else os.path.basename(zip_file)
@@ -230,37 +232,33 @@ class Scanner:
                 if ARCH_REGEX.search(name):
                     extract_dir = os.path.join(self.temp_dir, random_string())
                     make_dir_safe(extract_dir)
-                    inner_archive = os.path.join(extract_dir, name )
+                    inner_archive = os.path.join(extract_dir, name)
                     try:
                         zip_archive.extract(name, extract_dir)
                         if ARCH_REGEX.search(name):
                             yield from self._walk(inner_archive, parent)
-                    except BaseException as exc:
+                    except BaseException:
                         # Todo: Catalog actual exceptions and refine this
                         #  clause.
-                        logger.error("Caught an exception of type={0} "
-                               "while processing inner archive {1}"
-                               .format(sys.exc_info()[0], name))
+                        LOGGER.error("Caught an exception of type=%s "
+                                     "while processing inner archive %s",
+                                     sys.exc_info()[0], name)
                         continue
                     finally:
                         shutil.rmtree(extract_dir)
                 else:
-                    f = None
+                    fid = None
                     try:
-                        f = zip_archive.open(name)
-                        # Pseudo-path, don't use os.path.join().
-                        file_bytes = f.read()
-                        yield (os.path.basename(name),
-                               '/'.join([self.scan_root, parent,
-                                         os.path.dirname(name)]),
-                               calculate_md5(file_bytes), file_bytes)
+                        with zip_archive.open(name) as fid:
+                            # Pseudo-path, don't use os.path.join().
+                            file_bytes = fid.read()
+                            yield (os.path.basename(name),
+                                   '/'.join([self.scan_root, parent,
+                                             os.path.dirname(name)]),
+                                   calculate_md5(file_bytes), file_bytes)
                     except BaseException:
-                        logger.error("Caught an exception of type={0}: {1}"
-                               .format(sys.exc_info()[0], sys.exc_info()[1]))
-                    finally:
-                        if f:
-                            f.close()
-
+                        LOGGER.error("Caught an exception of type=%s: %s",
+                                     sys.exc_info()[0], sys.exc_info()[1])
 
     def _tar_walk(self, tar_file, parent=None):
         """
@@ -270,7 +268,7 @@ class Scanner:
             tar_file -- The name of the .tar (or compressed variant) file
             to scan.
         """
-        logger.info("Walking tar file={0}".format(tar_file))
+        LOGGER.info("Walking tar file=%s", tar_file)
         # Pseudo-path, don't use os.path.join().
         parent = '/'.join([parent, os.path.basename(tar_file)]) if parent \
             else os.path.basename(tar_file)
@@ -284,34 +282,30 @@ class Scanner:
                     if ARCH_REGEX.search(entry.name):
                         extract_dir = os.path.join(self.temp_dir, random_string())
                         make_dir_safe(extract_dir)
-                        inner_archive = os.path.join(extract_dir, entry.name )
+                        inner_archive = os.path.join(extract_dir, entry.name)
                         try:
                             tar_archive.extract(entry, extract_dir)
                             if ARCH_REGEX.search(inner_archive):
                                 yield from self._walk(inner_archive, parent)
-                        except BaseException as exc:
-                            logger.error("Caught an exception of type={0} "
-                                         "while processing inner archive {1}"
-                                         .format(sys.exc_info()[0], entry.name))
+                        except BaseException:
+                            LOGGER.error("Caught an exception of type=%s "
+                                         "while processing inner archive=%s",
+                                         sys.exc_info()[0], entry.name)
                             continue
                         finally:
                             shutil.rmtree(extract_dir)
                     else:
-                        f = None
                         try:
-                            f = tar_archive.extractfile(entry)
-                            file_bytes = f.read()
-                            yield(os.path.basename(entry.name),
-                                  '/'.join([self.scan_root, parent,
-                                            os.path.dirname(entry.name)]),
-                                  calculate_md5(file_bytes), file_bytes)
+                            with tar_archive.extractfile(entry) as fid:
+                                file_bytes = fid.read()
+                                yield (os.path.basename(entry.name),
+                                       '/'.join([self.scan_root, parent,
+                                                 os.path.dirname(entry.name)]),
+                                       calculate_md5(file_bytes), file_bytes)
                         except BaseException:
-                            logger.error("Caught an exception of type={0} "
-                                         "while extracting file {1}"
-                                         .format(sys.exc_info()[0], entry.name))
-                        finally:
-                            if f:
-                                f.close()
+                            LOGGER.error("Caught an exception of type=%s "
+                                         "while extracting file=%s",
+                                         sys.exc_info()[0], entry.name)
 
     def _scan_file(self, file_bytes):
         """
@@ -328,7 +322,7 @@ class Scanner:
                                                        errors='ignore')
                                          )
         if not file_str:
-            return None
+            return
 
         if self.ignore_case:
             file_str = file_str.casefold()
@@ -339,7 +333,7 @@ class Scanner:
     def scan(self):
         """Scan scan_root and print matches."""
 
-        logger.info("Scanning {0}".format(self.scan_root))
+        LOGGER.info("Scanning %s", self.scan_root)
 
         self.scan_results = {}
         md5s = set()
@@ -347,29 +341,28 @@ class Scanner:
         for name, path, md5, file_bytes in self._walk(None):
             self.stats['files_scanned'] += 1
             if self.stats['files_scanned'] % 1000 == 0:
-                logger.info("Matched {0} of {1} files scanned so " 
-                            "far.".format(self.stats['files_matched'],
-                                          self.stats['files_scanned']))
+                LOGGER.info("Matched %d of %d files scanned so far.",
+                            self.stats['files_matched'],
+                            self.stats['files_scanned'])
             for matched_string in self._scan_file(file_bytes):
                 if matched_string not in self.scan_results.keys():
                     self.scan_results[matched_string] = []
                 self.scan_results[matched_string].append((name, md5, path))
-                logger.debug("Matched String {0}, Name {1}, MD5 Digest {2}, "
-                             "Location {3}".format(matched_string, name, md5,
-                                                   path))
+                LOGGER.debug("Matched String=%s, Name=%s, MD5 Digest=%s, Location=%s",
+                             matched_string, name, md5, path)
                 if md5 not in md5s:
                     md5s.add(md5)
                     self.stats['files_matched'] += 1
 
-        logger.info("Scan complete. Matched {0} of {1} files.".format(
-            self.stats['files_matched'], self.stats['files_scanned']))
+        LOGGER.info("Scan complete. Matched %d of %d files.",
+                    self.stats['files_matched'], self.stats['files_scanned'])
 
     def get_results(self):
         """Flatten search_results into an array of tuples."""
         rows = []
-        for string in self.scan_results.keys():
-            for name, md5, path in self.scan_results[string]:
-                rows.append((string, md5, name, path))
+        for match_str, results in self.scan_results:
+            for name, md5, path in results:
+                rows.append((match_str, md5, name, path))
         return rows
 
 
@@ -377,6 +370,7 @@ class Output:
     """
     Format an output tuple to the desired device.
     """
+
     def __init__(self, header, rows, output_file=None, branding_text=None,
                  branding_logo=None):
         """
@@ -391,7 +385,7 @@ class Output:
             before the header.
 
         """
-        self.rows = rows;
+        self.rows = rows
         self.output_file = output_file
         self.header = header
         self.branding_logo = branding_logo
@@ -400,8 +394,6 @@ class Output:
     @abstractmethod
     def output(self):
         """Output the rows."""
-        pass
-
 
 class CSVOutput(Output):
     """
@@ -409,6 +401,7 @@ class CSVOutput(Output):
 
     Output goes to the console if the file attribute isn't set.
     """
+
     def output(self):
         """Output the rows."""
         out_fh = sys.stdout
@@ -417,7 +410,7 @@ class CSVOutput(Output):
                 make_dir_safe(self.output_file)
                 out_fh = open(self.output_file, encoding='utf-8', mode='w')
             except IOError:
-                logger.error("Can't open file={0}".format(self.output_file))
+                LOGGER.error("Can't open file=%s", self.output_file)
                 raise
         csv_writer = csv.writer(out_fh, delimeter=',', quotechar='"',
                                 quoting=csv.QUOTE_MINIMAL)
@@ -428,8 +421,9 @@ class CSVOutput(Output):
         for row in self.rows:
             csv_writer.writerow(row)
 
-        logger.info("Writing output to {0}".format(self.output_file))
+        LOGGER.info("Writing output to %s", self.output_file)
         out_fh.close()
+
 
 class ExcelOutput(Output):
     """Outputter for Microsoft Excel (.xlsx) output."""
@@ -455,51 +449,54 @@ class ExcelOutput(Output):
             for col_num, cell_value in enumerate(row):
                 sheet.write(row_num, col_num, cell_value)
 
-        logger.info("Writing output to {0}".format(self.output_file))
+        LOGGER.info("Writing output to %s", self.output_file)
         workbook.close()
 
+
 def print_usage():
+    """Print the program usage."""
     usage = \
-    """
-    python3 string_path_search.py [OPTIONS] <scan-root> [<search-string> [...]]
-    where:
-        -a, --unpack-archives = Unpack and scan within archives
-            (Default: Arhives will NOT be uncompressed and will be scanned
-            as a single file). LIMITATIONS: Only zip and tar archives will be
-            unpacked. Only gzip and bzip2 tar compression methods are supported.
-        -B, --branding-text=<branding-text> = A string of text containing
-            company or other information to add above the column headers in
-            scan reports (Default: no text).
-        -b, --branding-logo=<branding-logo> = (MS Excel only) An image
-            file containing a corporate logo or other graphic to add above the
-            column headers in scan reports (Default: no logo).
-        -h, --help = Print usage information and exit.
-        -e, --excel-output = Generate Microsoft Excel 2007 (.xlsx) output
-            (Default: Generate comma-separated-value (CSV) text output)
-        -i  --ingore-case = Ignore UPPER/lowercase differences when matching strings
-            (Default: case differences are significant).
-        -o, --output-dir=<output-dir> = Location for output (Default:
-            <current working directory>).
-        -s, --search-strings-file=<search-strings> = A file containing strings
-            to search for, one per line (No Default).
-        -q, --quiet = Decrease logging verbosity (may repeat). -vvvv will suppress all logging.
-        -t, --temp-dir=<temp-dir> = Location for unpacking archives
-            (Default: <output_dir>/temp).
-        -v, --verbose = Increase logging verbosity.
-        -x, --exclusions-file=<exclusion-file> = A file containing (base) filenames to
-            exclude from the search results.
-    <scan-root> = Directory to scan (No Default).
-    <search-string> ... = One or more terms to search for in <scan-root>.
-    """
+        """
+        python3 string_path_search.py [OPTIONS] <scan-root> [<search-string> [...]]
+        where:
+            -a, --unpack-archives = Unpack and scan within archives
+                (Default: Arhives will NOT be uncompressed and will be scanned
+                as a single file). Only jar, tar, and zip archives will be
+                unpacked. Tar bzip2, gzip, and xz compression is supported.
+            -B, --branding-text=<branding-text> = A string of text containing
+                company or other information to add above the column headers in
+                scan reports (Default: no text).
+            -b, --branding-logo=<branding-logo> = (MS Excel only) An image
+                file containing a corporate logo or other graphic to add above the
+                column headers in scan reports (Default: no logo).
+            -h, --help = Print usage information and exit.
+            -e, --excel-output = Generate Microsoft Excel 2007 (.xlsx) output
+                (Default: Generate comma-separated-value (CSV) text output)
+            -i  --ingore-case = Ignore UPPER/lowercase differences when matching strings
+                (Default: case differences are significant).
+            -o, --output-dir=<output-dir> = Location for output (Default:
+                <current working directory>).
+            -s, --search-strings-file=<search-strings> = A file containing strings
+                to search for, one per line (No Default).
+            -q, --quiet = Decrease logging verbosity (may repeat). -vvvv will suppress all logging.
+            -t, --temp-dir=<temp-dir> = Location for unpacking archives
+                (Default: <output_dir>/temp).
+            -v, --verbose = Increase logging verbosity.
+            -x, --exclusions-file=<exclusion-file> = A file containing (base) filenames to
+                exclude from the search results.
+        <scan-root> = Directory to scan (No Default).
+        <search-string> ... = One or more terms to search for in <scan-root>.
+        """
     eprint(usage)
+
 
 def main(sys_args):
     """Process the commandline and initiate a scan."""
 
     # Set program constants.
-    LEVEL_STRINGS = {logging.DEBUG:'DEBUG', logging.INFO:'INFO',
-                     logging.WARNING:'WARNING', logging.ERROR:'ERROR',
-                     logging.CRITICAL:'CRITICAL', logging.NOTSET:'NOTSET'}
+    level_strings = {logging.DEBUG: 'DEBUG', logging.INFO: 'INFO',
+                     logging.WARNING: 'WARNING', logging.ERROR: 'ERROR',
+                     logging.CRITICAL: 'CRITICAL', logging.NOTSET: 'NOTSET'}
 
     # Set program defaults.
     branding_text = None
@@ -590,8 +587,8 @@ def main(sys_args):
             eprint("-s <search-strings-file> argument, {0}, doesn't "
                    "exist".format(search_strings_file))
             sys.exit(2)
-        with open(search_strings_file, "rt", encoding="utf-8") as f:
-            for line in f:
+        with open(search_strings_file, "rt", encoding="utf-8") as fid:
+            for line in fid:
                 search_strings.add(line.strip())
 
     if exclusions_file:
@@ -599,8 +596,8 @@ def main(sys_args):
             eprint("-s <exclusions_file> argument, {0}, doesn't "
                    "exist".format(exclusions_file))
             sys.exit(2)
-        with open(exclusions_file, "rt", encoding="utf-8") as f:
-            for line in f:
+        with open(exclusions_file, "rt", encoding="utf-8") as fid:
+            for line in fid:
                 exclusions.add(line.strip().casefold())
 
     # Process positional parameters.
@@ -615,7 +612,8 @@ def main(sys_args):
         sys.exit(2)
 
     if len(args) > 1:
-        [search_strings.add(_.strip()) for _ in args[1:]]
+        for _ in args[1:]:
+            search_strings.add(_.strip())
 
     if not search_strings:
         eprint("You must specify at least one search string, either via the -s "
@@ -629,8 +627,8 @@ def main(sys_args):
                                'funcName)s:%(lineno)s - %('
                                'message)s',
                         datefmt='%d-%b-%y %H:%M:%S', level=log_level)
-    eprint("Minimum logging level is {0}".format(LEVEL_STRINGS[log_level]))
-    logger.info("Startup")
+    eprint("Minimum logging level is {0}".format(level_strings[log_level]))
+    LOGGER.info("Startup")
 
     scanner = Scanner(scan_root,
                       search_strings,
@@ -640,7 +638,7 @@ def main(sys_args):
                       exclusions=exclusions)
     scanner.scan()
     output_file = os.path.join(output_dir,
-                               '-'.join(["scan",time.strftime('%Y%m%d%H%M')]))
+                               '-'.join(["scan", time.strftime('%Y%m%d%H%M')]))
     if excel_output:
         output_file += ".xlsx"
         output = ExcelOutput(scanner.HEADERS,
@@ -656,7 +654,6 @@ def main(sys_args):
                            branding_text=branding_text)
     output.output()
 
+
 if __name__ == '__main__':
     main(sys.argv[1:])
-
-
