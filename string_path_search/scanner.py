@@ -114,8 +114,7 @@ def make_dir_safe(path, raise_errors=True):
                     exc.errno)
         if raise_errors:
             raise
-        else:
-            return ''
+        path = ''
 
     return path
 
@@ -154,7 +153,7 @@ class Scanner:
         if not self.search_strings:
             raise ValueError("No strings to search!")
         if self.scan_archives:
-                make_dir_safe(configs['temp_dir'])
+            make_dir_safe(configs['temp_dir'])
 
     def _walk(self, thing=None, parent=None):
         """Walk a tree based on thing."""
@@ -344,37 +343,39 @@ class Scanner:
         results = []
         for match_str, result_rows in self.scan_results.items():
             for name, md5, path in result_rows:
-                result_rows.append((match_str, md5, name, path))
+                results.append((match_str, md5, name, path))
         return results
+
 
 class Output:
     """
     Format an output tuple to the desired device.
     """
 
-    def __init__(self, header, rows, output_file=None, branding_text=None,
-                 branding_logo=None):
+    def __init__(self, header, rows, config):
         """
         Set it up.
 
         Args:
             header - A list of column labels (No Default).
             rows - A list of lists of cell values (No Default).
-            output_file - A file for output (Default: Output to the console).
-            branding_text - A list of cell values to be output before the header.
-            branding_logo - (Excel output only) Optional image to be inserted
+            config:
+                output_file - A file for output (Default: Output to the console).
+                branding_text - A list of cell values to be output before the header.
+                branding_logo - (Excel output only) Optional image to be inserted
             before the header.
 
         """
         self.rows = rows
-        self.output_file = output_file
+        self.output_file = config['output_file']
         self.header = header
-        self.branding_logo = branding_logo
-        self.branding_text = branding_text
+        self.branding_logo = config['branding_logo']
+        self.branding_text = config['branding_text']
 
     @abstractmethod
     def output(self):
         """Output the rows."""
+
 
 class CSVOutput(Output):
     """
@@ -470,23 +471,24 @@ def print_usage():
         """
     eprint(usage)
 
-def parse_args(sys_args, config):
+
+def parse_args(sys_args):
+    """Populate the config structure from the command line."""
 
     # Set program defaults.
-    scanner_config = {
-        'branding_text' : None,
-        'branding_logo' : None,
-        'excel_output' : True,
-        'ignore_case' : True,
-        'log_level' : logging.INFO,
-        'output_dir' : os.getcwd(),
-        'search_strings_file' : None,
-        'temp_dir' : os.path.join(os.getcwd(), "temp"),
-        'scan_archives' : False,
-        'search_strings_file' : None,
-        'exclusions_file' : None,
-        'search_strings' : set(),
-        'exclusions' : set()}
+    config = {
+        'branding_text': None,
+        'branding_logo': None,
+        'excel_output': True,
+        'ignore_case': True,
+        'log_level': logging.INFO,
+        'output_dir': os.getcwd(),
+        'search_strings_file': None,
+        'temp_dir': os.path.join(os.getcwd(), "temp"),
+        'scan_archives': False,
+        'exclusions_file': None,
+        'search_strings': set(),
+        'exclusions': set()}
 
     # Process option flags.
     try:
@@ -540,12 +542,11 @@ def parse_args(sys_args, config):
         elif opt in ("-s", "--search-string-file"):
             config['search_strings_file'] = arg.strip()
         elif opt in ("-t", "--temp-dir"):
-            temp_dir = arg.strip()
+            config['temp_dir'] = arg.strip()
         elif opt in ("-v", "--verbose"):
             config['log_level'] = logging.DEBUG
         elif opt in ("-x", "--exclusions-file"):
             config['exclusions_file'] = arg.strip()
-
 
     # Process positional parameters.
     if not args:
@@ -619,21 +620,14 @@ def main(sys_args):
 
     scanner = Scanner(config)
     scanner.scan()
-    output_file = os.path.join(config['output_dir'],
-                               '-'.join(["scan", time.strftime('%Y%m%d%H%M')]))
+    config['output_file'] = os.path.join(config['output_dir'],
+                                         '-'.join(["scan", time.strftime('%Y%m%d%H%M')]))
     if config['excel_output']:
-        output_file += ".xlsx"
-        output = ExcelOutput(scanner.HEADERS,
-                             scanner.get_results(),
-                             output_file=output_file,
-                             branding_text=config['branding_text'],
-                             branding_logo=config['branding_logo'])
+        config['output_file'] += ".xlsx"
+        output = ExcelOutput(scanner.HEADERS, scanner.get_results(), config)
     else:
-        output_file += ".csv"
-        output = CSVOutput(scanner.HEADERS,
-                           scanner.get_results(),
-                           output_file=output_file,
-                           branding_text=config['branding_text'])
+        config['output_file'] += ".csv"
+        output = CSVOutput(scanner.HEADERS, scanner.get_results(), config)
     output.output()
 
 
