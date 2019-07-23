@@ -360,8 +360,8 @@ class Scanner:
     def get_results(self):
         """Flatten search_results into an array of tuples."""
         rows = []
-        for match_str, results in self.scan_results:
-            for name, md5, path in results:
+        for match_str in self.scan_results.keys():
+            for name, md5, path in self.scan_results[match_str]:
                 rows.append((match_str, md5, name, path))
         return rows
 
