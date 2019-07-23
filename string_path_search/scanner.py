@@ -72,6 +72,9 @@ ARCH_REGEX = re.compile(r'\.(?:cab|cpio|ear|jar|rpm|tar|tar.gz|tgz|tar.bzip2'
 
 # Define global variables.
 LOGGER = logging.getLogger(__name__)
+LEVEL_STRINGS = {logging.DEBUG: 'DEBUG', logging.INFO: 'INFO',
+                 logging.WARNING: 'WARNING', logging.ERROR: 'ERROR',
+                 logging.CRITICAL: 'CRITICAL', logging.NOTSET: 'NOTSET'}
 
 
 # Define global methods.
@@ -122,57 +125,36 @@ class Scanner:
 
     HEADERS = ('String', 'MD5 Digest', 'Name', 'Location')
 
-    def __init__(self,
-                 scan_root,
-                 search_strings,
-                 exclusions=None,
-                 scan_archives=False,
-                 temp_dir=None,
-                 ignore_case=False):
+    def __init__(self, configs):
         """
         Setup the class instance.
 
         Parameters:
-            scan_root -- Root directory of scan, as a string. The scan_root
-                         directory must exist.
-            search_strings -- A list of strings to match against file contents.
-                              At least one search_string must be provided.
-            exclusions -- A list of strings to filter file names (Default:
-                          scan all files).
-            scan_archives -- If True, unpack and explore archives. Currently,
-                             only tar (gzip and bzip compression only), and
-                             zip archives are supported.(Default: False).
-            temp_dir -- With scan_archives == True, the directory for unpacking
-                        inner archives (i.e., archives within archives), as a
-                        string. The temp_dir will be created if it doesn't
-                        already exist (Default: None).
-            ignore_case -- If true, ignore capitalization differences when
-                           matching text (Default: Treat case as significant).
+            configs -- Dictionary of settings populated from the command line by parse_args()
         """
+        self.scan_root = configs['scan_root']
+        self.temp_dir = configs['temp_dir']
+        self.ignore_case = configs['ignore_case']
+        self.search_strings = []
+        for search_string in configs['search_strings']:
+            normal_string = unicodedata.normalize('NFKD', search_string)
+            if self.ignore_case:
+                normal_string = normal_string.casefold()
+            self.search_strings.append((normal_string, search_string))
+        self.exclusions = configs['exclusions']
+        self.scan_archives = configs['scan_archives']
+        self.scan_results = {}
+        self.stats = {}
         if sys.version_info[0] + sys.version_info[1] / 10 < 3.4:
             LOGGER.error("ERROR: This script requires Python 3.4 or greater.")
             sys.exit(-1)
-
-        if not os.path.isdir(scan_root):
+        if not os.path.isdir(configs['scan_root']):
             raise ValueError("scan_root {0} is not a directory".format(
-                scan_root))
-        if not search_strings:
+                configs['scan_root']))
+        if not self.search_strings:
             raise ValueError("No strings to search!")
-        if scan_archives:
-            make_dir_safe(temp_dir)
-        self.scan_root = scan_root
-        self.temp_dir = temp_dir
-        self.search_strings = []
-        for search_string in search_strings:
-            normal_string = unicodedata.normalize('NFKD', search_string)
-            if ignore_case:
-                normal_string = normal_string.casefold()
-            self.search_strings.append((normal_string, search_string))
-        self.exclusions = exclusions
-        self.scan_archives = scan_archives
-        self.ignore_case = ignore_case
-        self.scan_results = {}
-        self.stats = {}
+        if self.scan_archives:
+                make_dir_safe(configs['temp_dir'])
 
     def _walk(self, thing=None, parent=None):
         """Walk a tree based on thing."""
@@ -359,12 +341,11 @@ class Scanner:
 
     def get_results(self):
         """Flatten search_results into an array of tuples."""
-        rows = []
-        for match_str in self.scan_results.keys():
-            for name, md5, path in self.scan_results[match_str]:
-                rows.append((match_str, md5, name, path))
-        return rows
-
+        results = []
+        for match_str, result_rows in self.scan_results.items():
+            for name, md5, path in result_rows:
+                result_rows.append((match_str, md5, name, path))
+        return results
 
 class Output:
     """
@@ -489,29 +470,23 @@ def print_usage():
         """
     eprint(usage)
 
-
-def main(sys_args):
-    """Process the commandline and initiate a scan."""
-
-    # Set program constants.
-    level_strings = {logging.DEBUG: 'DEBUG', logging.INFO: 'INFO',
-                     logging.WARNING: 'WARNING', logging.ERROR: 'ERROR',
-                     logging.CRITICAL: 'CRITICAL', logging.NOTSET: 'NOTSET'}
+def parse_args(sys_args, config):
 
     # Set program defaults.
-    branding_text = None
-    branding_logo = None
-    excel_output = True
-    ignore_case = True
-    log_level = logging.INFO
-    output_dir = os.getcwd()
-    search_strings_file = None
-    temp_dir = os.path.join(os.getcwd(), "temp")
-    scan_archives = False
-    search_strings_file = None
-    exclusions_file = None
-    search_strings = set()
-    exclusions = set()
+    scanner_config = {
+        'branding_text' : None,
+        'branding_logo' : None,
+        'excel_output' : True,
+        'ignore_case' : True,
+        'log_level' : logging.INFO,
+        'output_dir' : os.getcwd(),
+        'search_strings_file' : None,
+        'temp_dir' : os.path.join(os.getcwd(), "temp"),
+        'scan_archives' : False,
+        'search_strings_file' : None,
+        'exclusions_file' : None,
+        'search_strings' : set(),
+        'exclusions' : set()}
 
     # Process option flags.
     try:
@@ -539,119 +514,126 @@ def main(sys_args):
         sys.exit(2)
     for opt, arg in opts:
         if opt in ("-B", "--branding-text"):
-            branding_text = arg.strip()
+            config['branding_text'] = arg.strip()
         elif opt in ("-b", "--branding-logo"):
-            branding_logo = arg.strip()
+            config['branding_logo'] = arg.strip()
         elif opt in ("-a", "--unpack-archives"):
-            scan_archives = True
+            config['scan_archives'] = True
         elif opt in ("-e", "--excel-output"):
-            excel_output = True
+            config['excel_output'] = True
         elif opt in ("-h", "--help"):
             print_usage()
             sys.exit(0)
         elif opt in ("-i", "--ignore-case"):
-            ignore_case = True
+            config['ignore_case'] = True
         elif opt in ("-o", "--output-dir"):
-            output_dir = arg.strip()
+            config['output_dir'] = arg.strip()
         elif opt in ("-q", "--quiet"):
-            if log_level == logging.CRITICAL:
-                log_level = logging.NOTSET
-            elif log_level == logging.ERROR:
-                log_level = logging.CRITICAL
-            elif log_level == logging.WARNING:
-                log_level = logging.ERROR
+            if config['log_level'] == logging.CRITICAL:
+                config['log_level'] = logging.NOTSET
+            elif config['log_level'] == logging.ERROR:
+                config['log_level'] = logging.CRITICAL
+            elif config['log_level'] == logging.WARNING:
+                config['log_level'] = logging.ERROR
             else:
-                log_level = logging.WARNING
+                config['log_level'] = logging.WARNING
         elif opt in ("-s", "--search-string-file"):
-            search_strings_file = arg.strip()
+            config['search_strings_file'] = arg.strip()
         elif opt in ("-t", "--temp-dir"):
             temp_dir = arg.strip()
         elif opt in ("-v", "--verbose"):
-            log_level = logging.DEBUG
+            config['log_level'] = logging.DEBUG
         elif opt in ("-x", "--exclusions-file"):
-            exclusions_file = arg.strip()
+            config['exclusions_file'] = arg.strip()
 
-    if branding_logo and not os.path.exists(branding_logo):
-        eprint("The <branding-logo> , {0}, doesn't exist.".format(
-            branding_logo))
-        sys.exit(2)
-
-    if not os.path.exists(output_dir) or not os.path.isdir(output_dir):
-        eprint("The <output-dir> , {0}, doesn't exist or isn't a "
-               "directory.".format(output_dir))
-        sys.exit(2)
-    make_dir_safe(temp_dir, True)
-
-    if search_strings_file:
-        if not os.path.exists(search_strings_file):
-            eprint("-s <search-strings-file> argument, {0}, doesn't "
-                   "exist".format(search_strings_file))
-            sys.exit(2)
-        with open(search_strings_file, "rt", encoding="utf-8") as fid:
-            for line in fid:
-                search_strings.add(line.strip())
-
-    if exclusions_file:
-        if not os.path.exists(exclusions_file):
-            eprint("-s <exclusions_file> argument, {0}, doesn't "
-                   "exist".format(exclusions_file))
-            sys.exit(2)
-        with open(exclusions_file, "rt", encoding="utf-8") as fid:
-            for line in fid:
-                exclusions.add(line.strip().casefold())
 
     # Process positional parameters.
     if not args:
         eprint("Insufficient arguments on command line")
         print_usage()
         sys.exit(2)
-    scan_root = args[0].strip()
-    if not os.path.exists(scan_root) or not os.path.isdir(scan_root):
-        eprint("The <scan-root> , {0}, doesn't exist or isn't a "
-               "directory.".format(scan_root))
-        sys.exit(2)
+    config['scan_root'] = args[0].strip()
 
     if len(args) > 1:
         for _ in args[1:]:
-            search_strings.add(_.strip())
+            config['search_strings'].add(_.strip())
 
-    if not search_strings:
+    if not config['search_strings']:
         eprint("You must specify at least one search string, either via the -s "
                "<search-strings-file> option or as positional commandline "
                "argument.")
         print_usage()
         sys.exit(2)
 
+    return config
+
+
+def main(sys_args):
+    """Instantiate a Scanner and initiate a scan."""
+
+    # Set program constants.
+    config = parse_args(sys_args)
+
+    # Validate some options.
+    if config['branding_logo'] and not os.path.exists(config['branding_logo']):
+        eprint("The <branding-logo> , {0}, doesn't exist.".format(
+            config['branding_logo']))
+        sys.exit(2)
+
+    if not os.path.exists(config['output_dir']) or not os.path.isdir(config['output_dir']):
+        eprint("The <output-dir> , {0}, doesn't exist or isn't a "
+               "directory.".format(config['output_dir']))
+        sys.exit(2)
+    make_dir_safe(config['temp_dir'], True)
+
+    if config['search_strings_file']:
+        if not os.path.exists(config['search_strings_file']):
+            eprint("-s <search-strings-file> argument, {0}, doesn't "
+                   "exist".format(config['search_strings_file']))
+            sys.exit(2)
+        with open(config['search_strings_file'], "rt", encoding="utf-8") as fid:
+            for line in fid:
+                config['search_strings'].add(line.strip())
+
+    if config['exclusions_file']:
+        if not os.path.exists(config['exclusions_file']):
+            eprint("-s <exclusions_file> argument, {0}, doesn't "
+                   "exist".format(config['exclusions_file']))
+            sys.exit(2)
+        with open(config['exclusions_file'], "rt", encoding="utf-8") as fid:
+            for line in fid:
+                config['exclusions'].add(line.strip().casefold())
+
+    if not os.path.exists(config['scan_root']) or not os.path.isdir(config['scan_root']):
+        eprint("The <scan-root> , {0}, doesn't exist or isn't a "
+               "directory.".format(config['scan_root']))
+        sys.exit(2)
+
     # Setup the logger
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(filename)s:%('
                                'funcName)s:%(lineno)s - %('
                                'message)s',
-                        datefmt='%d-%b-%y %H:%M:%S', level=log_level)
-    eprint("Minimum logging level is {0}".format(level_strings[log_level]))
+                        datefmt='%d-%b-%y %H:%M:%S', level=config['log_level'])
+    eprint("Minimum logging level is {0}".format(LEVEL_STRINGS[config['log_level']]))
     LOGGER.info("Startup")
 
-    scanner = Scanner(scan_root,
-                      search_strings,
-                      scan_archives=scan_archives,
-                      ignore_case=ignore_case,
-                      temp_dir=temp_dir,
-                      exclusions=exclusions)
+    scanner = Scanner(config)
     scanner.scan()
-    output_file = os.path.join(output_dir,
+    output_file = os.path.join(config['output_dir'],
                                '-'.join(["scan", time.strftime('%Y%m%d%H%M')]))
-    if excel_output:
+    if config['excel_output']:
         output_file += ".xlsx"
         output = ExcelOutput(scanner.HEADERS,
                              scanner.get_results(),
                              output_file=output_file,
-                             branding_text=branding_text,
-                             branding_logo=branding_logo)
+                             branding_text=config['branding_text'],
+                             branding_logo=config['branding_logo'])
     else:
         output_file += ".csv"
         output = CSVOutput(scanner.HEADERS,
                            scanner.get_results(),
                            output_file=output_file,
-                           branding_text=branding_text)
+                           branding_text=config['branding_text'])
     output.output()
 
 
