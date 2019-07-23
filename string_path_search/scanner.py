@@ -65,6 +65,7 @@ import xlsxwriter
 
 # Define constants.
 DIR_REGEX = re.compile(r'[/]$')
+JAR_REGEX = re.compile(r'\.jar$')
 TAR_REGEX = re.compile(r'\.(?:tar|tar.gz|tgz|tar.bzip2|tar.bz2|tbz2)$')
 ZIP_REGEX = re.compile(r'\.zip$')
 ARCH_REGEX = re.compile(r'\.(?:cab|cpio|ear|jar|rpm|tar|tar.gz|tgz|tar.bzip2'
@@ -159,7 +160,7 @@ class Scanner:
         """Walk a tree based on thing."""
         if not thing:
             thing = self.scan_root
-        if self.scan_archives and ZIP_REGEX.search(thing):
+        if self.scan_archives and ZIP_REGEX.search(thing) or JAR_REGEX.search(thing):
             yield from self._zip_walk(thing, parent)
         elif self.scan_archives and TAR_REGEX.search(thing):
             yield from self._tar_walk(thing, parent)
@@ -199,7 +200,8 @@ class Scanner:
             zip_file -- The full path to the .zip file to scan.
             parent - The root for the extraction if this is an inner archive.
         """
-        LOGGER.info("Walking zip file=%s", zip_file)
+        archive_type = 'jar' if JAR_REGEX.search(zip_file) else 'zip'
+        LOGGER.info("Walking %s file=%s", archive_type, zip_file)
         # Pseudo-path, don't use os.path.join().
         parent = '/'.join([parent, os.path.basename(zip_file)]) if parent \
             else os.path.basename(zip_file)

@@ -11,7 +11,7 @@ bin/
 build/
 develop-eggs/
 dist/
-temp/
+temp/**
 test/temp/
 eggs/
 parts/
