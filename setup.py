@@ -17,8 +17,8 @@ DESCRIPTION = 'Search a directory path for any of a list of strings.'
 URL = 'https://github.com/j-lawrence-b1/string_path_search'
 EMAIL = 'JLawrenceB1@gmail.com'
 AUTHOR = 'Larry Barnett'
-REQUIRES_PYTHON = '>=3.5.0'
-VERSION = '0.2'
+REQUIRES_PYTHON = '>=3.4.0'
+VERSION = '0.3'
 
 # What packages are required for this module to be executed?
 REQUIRED = [

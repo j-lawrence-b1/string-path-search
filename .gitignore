@@ -8,7 +8,7 @@ __pycache__/
 # Distribution / packaging
 node_modules/
 bin/
-build/manifest.json
+build/
 develop-eggs/
 dist/
 temp/
@@ -17,6 +17,7 @@ eggs/
 parts/
 sdist/
 var/
+venv/
 npm-debug.log
 *.egg-info/
 .installed.cfg
