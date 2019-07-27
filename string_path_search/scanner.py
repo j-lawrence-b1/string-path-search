@@ -111,20 +111,19 @@ class Scanner:
         """Walk a tree based on thing."""
         if not thing:
             thing = self.scan_root
-        if self.scan_archives and ZIP_REGEX.search(thing) or JAR_REGEX.search(thing):
+        if os.path.isdir(thing):
+            yield from self._dir_walk(thing)
+        elif self.scan_archives and (ZIP_REGEX.search(thing) or JAR_REGEX.search(thing)):
             yield from self._zip_walk(thing, parent)
         elif self.scan_archives and TAR_REGEX.search(thing):
             yield from self._tar_walk(thing, parent)
         elif ARCH_REGEX.search(thing):
             if self.scan_archives:
                 LOGGER.warning("Skipping unsupported archive %s", thing)
-        elif os.path.isdir(thing):
-            yield from self._dir_walk(thing)
+        elif not os.path.isfile(thing):
+            LOGGER.warning("Thing '%s' is neither a directory nor is it a file", thing)
+            return
         else:
-            if not os.path.isfile(thing):
-                LOGGER.warning("Thing '%s' is neither a directory nor is it a file", thing)
-                return
-
             try:
                 with open(thing, 'rb') as fid:
                     file_bytes = fid.read()
@@ -161,9 +160,9 @@ class Scanner:
                 name = info.filename
                 if DIR_REGEX.search(name):
                     continue
-                if os.path.basename(name).casefold() in self.exclusions:
+                elif os.path.basename(name).casefold() in self.exclusions:
                     continue
-                if ARCH_REGEX.search(name):
+                elif ARCH_REGEX.search(name):
                     extract_dir = os.path.join(self.temp_dir, random_string())
                     make_dir_safe(extract_dir)
                     inner_archive = os.path.join(extract_dir, name)
@@ -214,9 +213,9 @@ class Scanner:
             for entry in tar_archive:
                 if not entry.isreg():
                     continue
-                if os.path.basename(entry.name).casefold() in self.exclusions:
+                elif os.path.basename(entry.name).casefold() in self.exclusions:
                     continue
-                if ARCH_REGEX.search(entry.name):
+                elif ARCH_REGEX.search(entry.name):
                     extract_dir = os.path.join(self.temp_dir, random_string())
                     make_dir_safe(extract_dir)
                     inner_archive = os.path.join(extract_dir, entry.name)
@@ -236,20 +235,19 @@ class Scanner:
                         shutil.rmtree(extract_dir)
 
                     continue
-
-                # Else, it's not an archive.
-                try:
-                    with tar_archive.extractfile(entry) as fid:
-                        file_bytes = fid.read()
-                        yield (os.path.basename(entry.name),
-                               '/'.join([self.scan_root, parent, os.path.dirname(entry.name)]),
-                               calculate_md5(file_bytes), file_bytes)
-                # pylint: disable=W0703
-                # W0703 = broad-except
-                except BaseException:
-                    LOGGER.error("Caught an exception of type=%s while extracting file=%s",
-                                 sys.exc_info()[0], entry.name)
-                # pylint: enable=W0703
+                else:
+                    try:
+                        with tar_archive.extractfile(entry) as fid:
+                            file_bytes = fid.read()
+                            yield (os.path.basename(entry.name),
+                                   '/'.join([self.scan_root, parent, os.path.dirname(entry.name)]),
+                                   calculate_md5(file_bytes), file_bytes)
+                    # pylint: disable=W0703
+                    # W0703 = broad-except
+                    except BaseException:
+                        LOGGER.error("Caught an exception of type=%s while extracting file=%s",
+                                     sys.exc_info()[0], entry.name)
+                    # pylint: enable=W0703
 
     def _scan_file(self, file_bytes):
         """
@@ -398,3 +396,5 @@ class ExcelOutput(Output):
 
         LOGGER.info("Writing output to %s", self.output_file)
         workbook.close()
+
+# pylint: enable=R0903
