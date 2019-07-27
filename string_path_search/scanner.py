@@ -68,6 +68,9 @@ ZIP_REGEX = re.compile(r'\.zip$')
 ARCH_REGEX = re.compile(r'\.(?:cab|cpio|ear|jar|rpm|tar|tar.gz|tgz|tar.bzip2'
                         r'|tar.bz2|tbz2|war|zip)$')
 
+
+# pylint: disable=R0902
+# R0902 = too-many-instance-attributes
 class Scanner:
     """Class to scan a directory tree for a set of strings"""
 
@@ -168,13 +171,14 @@ class Scanner:
                         zip_archive.extract(name, extract_dir)
                         if ARCH_REGEX.search(name):
                             yield from self._walk(inner_archive, parent)
+                    # pylint: disable=W0703
+                    # W0703 = broad-except
                     except BaseException:
-                        # Todo: Catalog actual exceptions and refine this
-                        #  clause.
                         LOGGER.error("Caught an exception of type=%s "
                                      "while processing inner archive %s",
                                      sys.exc_info()[0], name)
                         continue
+                    # pylint: enable=W0703
                     finally:
                         shutil.rmtree(extract_dir)
                 else:
@@ -187,9 +191,12 @@ class Scanner:
                                    '/'.join([self.scan_root, parent,
                                              os.path.dirname(name)]),
                                    calculate_md5(file_bytes), file_bytes)
+                    # pylint: disable=W0703
+                    # W0703 = broad-except
                     except BaseException:
                         LOGGER.error("Caught an exception of type=%s: %s",
                                      sys.exc_info()[0], sys.exc_info()[1])
+                    # pylint: enable=W0703
 
     def _tar_walk(self, tar_file, parent=None):
         """
@@ -205,38 +212,44 @@ class Scanner:
             else os.path.basename(tar_file)
         with tarfile.open(tar_file, 'r') as tar_archive:
             for entry in tar_archive:
-                if entry.isdir():
+                if not entry.isreg():
                     continue
-                elif entry.isreg():
-                    if os.path.basename(entry.name).casefold() in self.exclusions:
+                if os.path.basename(entry.name).casefold() in self.exclusions:
+                    continue
+                if ARCH_REGEX.search(entry.name):
+                    extract_dir = os.path.join(self.temp_dir, random_string())
+                    make_dir_safe(extract_dir)
+                    inner_archive = os.path.join(extract_dir, entry.name)
+                    try:
+                        tar_archive.extract(entry, extract_dir)
+                        if ARCH_REGEX.search(inner_archive):
+                            yield from self._walk(inner_archive, parent)
+                    # pylint: disable=W0703
+                    # W0703 = broad-except
+                    except BaseException:
+                        LOGGER.error("Caught an exception of type=%s "
+                                     "while processing inner archive=%s",
+                                     sys.exc_info()[0], entry.name)
                         continue
-                    if ARCH_REGEX.search(entry.name):
-                        extract_dir = os.path.join(self.temp_dir, random_string())
-                        make_dir_safe(extract_dir)
-                        inner_archive = os.path.join(extract_dir, entry.name)
-                        try:
-                            tar_archive.extract(entry, extract_dir)
-                            if ARCH_REGEX.search(inner_archive):
-                                yield from self._walk(inner_archive, parent)
-                        except BaseException:
-                            LOGGER.error("Caught an exception of type=%s "
-                                         "while processing inner archive=%s",
-                                         sys.exc_info()[0], entry.name)
-                            continue
-                        finally:
-                            shutil.rmtree(extract_dir)
-                    else:
-                        try:
-                            with tar_archive.extractfile(entry) as fid:
-                                file_bytes = fid.read()
-                                yield (os.path.basename(entry.name),
-                                       '/'.join([self.scan_root, parent,
-                                                 os.path.dirname(entry.name)]),
-                                       calculate_md5(file_bytes), file_bytes)
-                        except BaseException:
-                            LOGGER.error("Caught an exception of type=%s "
-                                         "while extracting file=%s",
-                                         sys.exc_info()[0], entry.name)
+                    # pylint: enable=W0703
+                    finally:
+                        shutil.rmtree(extract_dir)
+
+                    continue
+
+                # Else, it's not an archive.
+                try:
+                    with tar_archive.extractfile(entry) as fid:
+                        file_bytes = fid.read()
+                        yield (os.path.basename(entry.name),
+                               '/'.join([self.scan_root, parent, os.path.dirname(entry.name)]),
+                               calculate_md5(file_bytes), file_bytes)
+                # pylint: disable=W0703
+                # W0703 = broad-except
+                except BaseException:
+                    LOGGER.error("Caught an exception of type=%s while extracting file=%s",
+                                 sys.exc_info()[0], entry.name)
+                # pylint: enable=W0703
 
     def _scan_file(self, file_bytes):
         """
@@ -297,6 +310,8 @@ class Scanner:
         return results
 
 
+# pylint: disable=R0903
+# R0903 = too-few-public-methods
 class Output:
     """
     Format an output tuple to the desired device.

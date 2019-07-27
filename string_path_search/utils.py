@@ -1,25 +1,14 @@
 """Grab-bag of utility functions."""
 
 # Import Python standard modules.
-from abc import abstractmethod
-import codecs
-import csv
 import hashlib
-import getopt
 import logging
 import os
 import random
-import re
-import shutil
 import string
 import sys
-import tarfile
-import time
-import unicodedata
-import zipfile
 
 # Import 3rd party modules.
-import xlsxwriter
 
 # Define constants.
 
@@ -72,20 +61,20 @@ def eprint(*args, **kwargs):
 
 
 def get_logger(log_level=logging.INFO,
-               format='%(asctime)s - %(levelname)s - %(filename)s:%(funcName)s:%(lineno)s - %('
-                      'message)s',
-               name=__name__):
+               msg_format='%(asctime)s - %(levelname)s - %(filename)s:%(funcName)s:%(lineno)s'
+                          '- %(message)s',
+               cls_name=__name__):
     """
     Instantiate a new logger.
 
     Args:
         log_level = One of the log reporting levels defined in the logging module
                     (Default:  logging.INFO)
-        name = Class name for this logger (Default: __name__)
+        cls_name = Class name for this logger (Default: __name__)
     """
 
-    logging.basicConfig(format=format, level=log_level)
-    return logging.getLogger(name)
+    logging.basicConfig(format=msg_format, level=log_level)
+    return logging.getLogger(cls_name)
 
 
-LOGGER = get_logger(os.path.basename(sys.argv[0]))
+LOGGER = get_logger(cls_name=os.path.basename(sys.argv[0]))
