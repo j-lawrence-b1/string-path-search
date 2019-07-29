@@ -22,7 +22,8 @@ VERSION = '0.3'
 
 # What packages are required for this module to be executed?
 REQUIRED = [
-    'xlsxwriter'
+    'xlsxwriter',
+    'PIL'
 ]
 
 # What packages are optional?

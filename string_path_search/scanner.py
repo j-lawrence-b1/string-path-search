@@ -46,6 +46,7 @@ Todo:
 from abc import abstractmethod
 import codecs
 import csv
+import math
 import os
 import re
 import shutil
@@ -56,6 +57,7 @@ import zipfile
 
 # Import 3rd party modules.
 import xlsxwriter
+from PIL import Image
 
 # Import project modules.
 from .utils import calculate_md5, LOGGER, make_dir_safe, random_string
@@ -371,7 +373,35 @@ class CSVOutput(Output):
 
 
 class ExcelOutput(Output):
-    """Outputter for Microsoft Excel (.xlsx) output."""
+    """
+    Outputter for Microsoft Excel (.xlsx) output.
+
+    """
+    CELL_BUFFER_CHARS = 2
+    CHAR_PIXEL_WIDTH = 9
+
+    def set_col_widths(self, sheet):
+        """
+        Calculate sheet column widths sufficient to fit the longest data value.
+
+        Args:
+            workbook - An XlsxWriter Workbook containing the columns to resize.
+            logo_img_char_width - If using a branding_logo, the width, in 12-pica "characters",
+            of the image.
+        """
+        for col_num, col_vals in enumerate(tuple(zip(self.header, *self.rows))):
+            max_width = 1
+            if col_num == 0:
+                if self.branding_logo:
+                    with Image.open(self.branding_logo) as img:
+                        sheet.set_row(0, img.size[1])
+                        max_width = img.size[0] / self.CHAR_PIXEL_WIDTH
+                elif self.branding_text:
+                    max_width = len(self.branding_text)
+            for col_val in col_vals:
+                if len(col_val) > max_width:
+                    max_width = len(col_val)
+            sheet.set_column(col_num, col_num, max_width + self.CELL_BUFFER_CHARS)
 
     def output(self):
         """Output the rows."""
@@ -380,10 +410,9 @@ class ExcelOutput(Output):
         row_num = 0
         if self.branding_logo and os.path.exists(self.branding_logo):
             sheet.insert_image(row_num, 0, self.branding_logo)
-            row_num += 5
+            row_num += 1
         if self.branding_text:
-            for col_num, cell_value in enumerate(self.branding_text):
-                sheet.write(row_num, col_num, cell_value)
+            sheet.write(row_num, 0, self.branding_text)
             row_num += 2
 
         for col_num, cell_value in enumerate(self.header):
@@ -393,6 +422,8 @@ class ExcelOutput(Output):
             row_num += 1
             for col_num, cell_value in enumerate(row):
                 sheet.write(row_num, col_num, cell_value)
+
+        self.set_col_widths(sheet)
 
         LOGGER.info("Writing output to %s", self.output_file)
         workbook.close()
