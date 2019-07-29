@@ -377,8 +377,8 @@ class ExcelOutput(Output):
     Outputter for Microsoft Excel (.xlsx) output.
 
     """
-    CELL_BUFFER_CHARS = 2
-    CHAR_PIXEL_WIDTH = 9
+    CELL_BUFFER_CHARS = 1
+    CHAR_PIXEL_WIDTH = 8.63
 
     def set_col_widths(self, sheet):
         """
@@ -396,8 +396,6 @@ class ExcelOutput(Output):
                     with Image.open(self.branding_logo) as img:
                         sheet.set_row(0, img.size[1])
                         max_width = img.size[0] / self.CHAR_PIXEL_WIDTH
-                elif self.branding_text:
-                    max_width = len(self.branding_text)
             for col_val in col_vals:
                 if len(col_val) > max_width:
                     max_width = len(col_val)

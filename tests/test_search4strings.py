@@ -18,6 +18,6 @@ branding_text = "this is the branding text. It is really, really important"
 spec = importlib.util.spec_from_file_location("search4strings", Path(bin_dir / "search4strings.py"))
 search4strings = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(search4strings)
-args = ['-a', '-e', '-i', '-v', ' '.join(('-B', branding_text)),
+args = ['-a', '-e', '-i', '-v', ' '.join(('-b', str(branding_logo))),
         ' '.join(('-o', str(out_dir))), str(scan_root), 'Copyright (c)']
 search4strings.main(args)
