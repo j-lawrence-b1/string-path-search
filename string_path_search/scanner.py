@@ -379,6 +379,7 @@ class ExcelOutput(Output):
     """
     CELL_BUFFER_CHARS = 1
     CHAR_PIXEL_WIDTH = 8.63
+    CHAR_PIXEL_HEIGHT = 16
 
     def set_col_widths(self, sheet):
         """
@@ -391,11 +392,6 @@ class ExcelOutput(Output):
         """
         for col_num, col_vals in enumerate(tuple(zip(self.header, *self.rows))):
             max_width = 1
-            if col_num == 0:
-                if self.branding_logo:
-                    with Image.open(self.branding_logo) as img:
-                        sheet.set_row(0, img.size[1])
-                        max_width = img.size[0] / self.CHAR_PIXEL_WIDTH
             for col_val in col_vals:
                 if len(col_val) > max_width:
                     max_width = len(col_val)
@@ -408,7 +404,8 @@ class ExcelOutput(Output):
         row_num = 0
         if self.branding_logo and os.path.exists(self.branding_logo):
             sheet.insert_image(row_num, 0, self.branding_logo)
-            row_num += 1
+            with Image.open(self.branding_logo) as img:
+                row_num += math.ceil(img.size[1] / self.CHAR_PIXEL_HEIGHT)
         if self.branding_text:
             sheet.write(row_num, 0, self.branding_text)
             row_num += 2
