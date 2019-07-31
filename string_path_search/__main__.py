@@ -81,7 +81,7 @@ def print_usage():
                 <current working directory>).
             -s, --search-strings-file=<search-strings> = A file containing strings
                 to search for, one per line (No Default).
-            -q, --quiet = Decrease logging verbosity (may repeat). -vvvv will suppress all logging.
+            -q, --quiet = Decrease logging verbosity (may repeat). -qqqq will suppress all logging.
             -t, --temp-dir=<temp-dir> = Location for unpacking archives
                 (Default: <output_dir>/temp).
             -v, --verbose = Increase logging verbosity.
