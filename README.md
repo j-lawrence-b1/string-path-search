@@ -1,12 +1,11 @@
-#string-path-search
-Walk a directory tree, searching for any of a set of strings. Optionally, explore inside 
-inside .jar, .tar, or .zip archives.
+#string_path_search
+Walk a directory tree, searching for files containing any of a set of text strings.
 
 ##Why not just use ***find*** and ***grep***?
-* What is this 'grep' you speak of?
+* Avoids long, hard-to-debug shell commands with lots of backticks and parentheses.
 * Works on Windows without needing to install a unix work-alike like Cygwin.
 * Searches for a bunch of different strings in one go.
-* Searches within jar, tar, or zip archives.
+* Searches within (possibly compressed) jar, tar, or zip archives.
 * Outputs results in CSV or Excel format. 
 
 ##System requirements
@@ -36,6 +35,8 @@ $ python string_path_search/setup.py install --user
 </pre>
 
 ##Usage
+Although you can import and use this package in other scripts, string_path_search is 
+primarily intended to be invoked as a console app:
 <pre>
     $ python -m string_path_search [OPTIONS] &lt;scan-root&gt; [&lt;search-term&gt; [...]]
     where:
