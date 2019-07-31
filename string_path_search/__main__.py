@@ -60,7 +60,7 @@ def print_usage():
     """Print the program usage."""
     usage = \
         """
-        python3 string_path_search.py [OPTIONS] <scan-root> [<search-string> [...]]
+        $ python -m string_path_search [OPTIONS] <scan-root> [<search-string> [...]]
         where:
             -a, --unpack-archives = Unpack and scan within archives
                 (Default: Arhives will NOT be uncompressed and will be scanned
