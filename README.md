@@ -19,10 +19,11 @@ text strings.
 Some Linux systems (also Cygwin on Windows) come with python 2
 pre-installed. You have to install python 3 yourself. There are gotchas
 involved:
- 1. The "python" and "pip" packages may be reserved for version 2. It may not be as easy as 
+1. The "python" and "pip" packages may be reserved for version 2. It may not be as easy as 
  "apt-get install python3" either. The latest package might be called "python3.7" or similar.
-  Ditto with pip 3.
- 2. Once installed, the python 3 binary may be called "python3", not python. Ditto with pip.
+  Ditto with pip.
+2.  Once installed, the python 3 binary may be called "python3", not
+    "python". Ditto with pip.
   
 ## Installation from pypi:
 <pre>
