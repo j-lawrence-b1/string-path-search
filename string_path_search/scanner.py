@@ -1,46 +1,4 @@
-"""
-For a directory and a list of strings, find the files that match any string.
-
-Usage:
-    python3 string_path_search.py [OPTIONS] <scan-root> [<search-string> [...]]
-    where:
-        -a, --unpack-archives = Unpack and scan within archives
-            (Default: Arhives will NOT be uncompressed and will be scanned
-            as a single file). LIMITATIONS: Only zip and tar archives will be
-            unpacked. Only gzip and bzip2 tar compression methods are supported.
-        -B, --branding-text=<branding-text> = A string of text containing
-            company or other information to add above the column headers in
-            scan reports (Default: no text).
-        -b, --branding-logo=<branding-logo> = (MS Excel only) An image
-            file containing a corporate logo or other graphic to add above the
-            column headers in scan reports (Default: no logo).
-        -h, --help = Print usage information and exit.
-        -e, --excel-output = Generate Microsoft Excel 2007 (.xlsx) output
-            (Default: Generate comma-separated-value (CSV) text output)
-        -i  --ingore-case = Ignore UPPER/lowercase differences when matching strings
-            (Default: case differences are significant).
-        -o, --output-dir=<output-dir> = Location for output (Default:
-            <current working directory>).
-        -s, --search-strings=<search-strings> = A file containing strings to
-        search for, one per line (No Default).
-        -q, --quiet = Decrease logging verbosity (may repeat). -vvvv will suppress all logging.
-        -t, --temp-dir=<temp-dir> = Location for unpacking archives
-            (Default: <output_dir>/temp).
-        -v, --verbose = Increase logging verbosity.
-    <scan-root> = Directory to scan (No Default).
-
-Limitations:
-    Requires Python 3.4 or later.
-    Only handles tar and zip archives.
-    Only handles gzip, bzip2, and zip tar compression.
-    Only handles compression in archives, not single files.
-    Maximum file size and results array length limited by available system RAM
-    Maximum archive size limited by available Scanner.temp_dir disk space
-
-Todo:
-    Config file
-    Pypi deployment
-"""
+"""Classes and methods to support recursive string searching within a directory"""
 
 # Import Python standard modules.
 from abc import abstractmethod
