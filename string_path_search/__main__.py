@@ -61,6 +61,8 @@ def print_usage():
     usage = \
         """
         $ python -m string_path_search [OPTIONS] <scan-root> [<search-string> [...]]
+        or (if the .exe was installed from pypi):
+        $ string_path_search.exe [OPTIONS] <scan-root> [<search-string> [...]]
         where:
             -a, --unpack-archives = Unpack and scan within archives
                 (Default: Arhives will NOT be uncompressed and will be scanned
@@ -96,7 +98,7 @@ def print_usage():
 # pylint: disable=R0912,R0915
 # R0912 = too-many-branches
 # R0915 = too-many-statements
-def parse_args(sys_args):
+def parse_args():
     """Populate the config structure from the command line."""
 
     # Set program defaults.
@@ -114,6 +116,9 @@ def parse_args(sys_args):
         'search_strings': set(),
         'exclusions': set(),
     }
+
+    program_name = sys.argv[0]
+    sys_args = sys.args[1:]
 
     # Process option flags.
     try:
@@ -137,7 +142,7 @@ def parse_args(sys_args):
 
     if '-v' in opts and '-q' in opts:
         eprint("Improper usage: Use -v or -q, not both.")
-        print_usage()
+        print_usage(os.path.basename(program_name))
         sys.exit(2)
     for opt, arg in opts:
         if opt in ("-B", "--branding-text"):
@@ -195,11 +200,14 @@ def parse_args(sys_args):
 # pylint: enable=R0912,R0915
 
 
-def main(sys_args):
+def main():
     """Instantiate a Scanner and initiate a scan."""
 
+    # In order for the setup.py console_scripts target to work, it must have
+    # zero arguments. So, we get them internally.
+
     # Parse the command line.
-    config = parse_args(sys_args)
+    config = parse_args(sys.argv)
 
     # Validate some options.
     if config['branding_logo'] and not os.path.exists(config['branding_logo']):
@@ -254,4 +262,4 @@ def main(sys_args):
 
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    main()

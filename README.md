@@ -1,6 +1,5 @@
-# string_path_search
-Walk a directory tree, searching for files containing any of a set of
-text strings.
+# string_path_search Walk a directory tree, searching for files
+containing any of a set of text strings.
 
 ## Why not just use ***find*** and ***grep***?
 * Avoids long, hard-to-debug shell commands with lots of backticks and parentheses.
@@ -26,9 +25,15 @@ involved:
     "python". Ditto with pip.
   
 ## Installation from pypi:
+This method is preferred because it also installs a standalone
+executable string_path_search.exe in the local Scripts
+directory.
 <pre>
 $ python -m pip install string_path_search --user 
 </pre>
+**Note:** Pip will warn you if the local Scripts directory isn't in the
+shell's PATH. If not, you can add it via the control panel (Windows) or
+the .bashrc file (Linux).
 
 ## Installation from GitHub
 <pre>
@@ -41,33 +46,40 @@ Although you can import and use this package in other Python scripts,
 string_path_search is primarily intended to be invoked as a console app:
 <pre>
     $ python -m string_path_search [OPTIONS] &lt;scan-root&gt; [&lt;search-term&gt; [...]]
-    where:
-        -a, --scan-archives = Unpack and scan within archives
-            (Default: Skip arhive files. Only jar, tar, and zip archives will be
-                unpacked. Tar bzip2, gzip, and xz compression is supported.
-        -B, --branding-text=&lt;branding-text&gt; = A string of text containing
-            company or other information to add above the column headers in
-            scan reports (Default: no text).
-        -b, --branding-logo=&lt;branding-logo&gt; = (MS Excel only) An image
-            file containing a corporate logo or other graphic to add above the
-            column headers in scan reports (Default: no logo).
-        -h, --help = Print usage information and exit.
-        -e, --excel-output = Generate Microsoft Excel 2007 (.xlsx) output
-            (Default: Generate comma-separated-value (CSV) text output)
-        -i  --ingore-case = Ignore UPPER/lowercase differences when matching strings
-            (Default: case differences are significant).
-        -o, --output-dir=&lt;output-dir&gt; = Location for output (Default:
-            &lt;current working directory&gt;).
-        -s, --search-strings-file=&lt;search-strings&gt; = A file containing strings to
-            search for, one per line (Default: Get search strings from the command line).
-        -q, --quiet = Decrease logging verbosity (may repeat). -qqqq will suppress all logging.
-        -t, --temp-dir=&lt;temp-dir&gt; = Location for unpacking archives
-            (Default: &lt;output_dir&gt;/temp).
-        -v, --verbose = Increase logging verbosity.
-        -x, --exclusions-file=&lt;exclusion-file&gt; = A file containing (base) filenames to
-            exclude from the search results, one per line (Default: Include all results).
-    &lt;scan-root&gt; = Directory to scan.
-    &lt;search-term&gt; ... = One or more terms to search for in &lt;scan-root&gt;.
+</pre>
+or, if the .exe was installed via pip and the local python Scripts
+directory has been added to the shell's execution PATH:
+<pre>
+    $ string_path_search [OPTIONS] &lt;scan-root&gt; [&lt;search-term&gt; [...]]
+</pre>
+where:
+<pre>
+    -a, --scan-archives = Unpack and scan within archives
+        (Default: Skip arhive files. Only jar, tar, and zip archives will be
+            unpacked. Tar bzip2, gzip, and xz compression is supported.
+    -B, --branding-text=&lt;branding-text&gt; = A string of text containing
+        company or other information to add above the column headers in
+        scan reports (Default: no text).
+    -b, --branding-logo=&lt;branding-logo&gt; = (MS Excel only) An image
+        file containing a corporate logo or other graphic to add above the
+        column headers in scan reports (Default: no logo).
+    -h, --help = Print usage information and exit.
+    -e, --excel-output = Generate Microsoft Excel 2007 (.xlsx) output
+        (Default: Generate comma-separated-value (CSV) text output)
+    -i  --ingore-case = Ignore UPPER/lowercase differences when matching strings
+        (Default: case differences are significant).
+    -o, --output-dir=&lt;output-dir&gt; = Location for output (Default:
+        &lt;current working directory&gt;).
+    -s, --search-strings-file=&lt;search-strings&gt; = A file containing strings to
+        search for, one per line (Default: Get search strings from the command line).
+    -q, --quiet = Decrease logging verbosity (may repeat). -qqqq will suppress all logging.
+    -t, --temp-dir=&lt;temp-dir&gt; = Location for unpacking archives
+        (Default: &lt;output_dir&gt;/temp).
+    -v, --verbose = Increase logging verbosity.
+    -x, --exclusions-file=&lt;exclusion-file&gt; = A file containing (base) filenames to
+        exclude from the search results, one per line (Default: Include all results).
+&lt;scan-root&gt; = Directory to scan.
+&lt;search-term&gt; ... = One or more terms to search for in &lt;scan-root&gt;.
 </pre>
 ## Examples
 
