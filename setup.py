@@ -18,7 +18,7 @@ URL = 'https://github.com/j-lawrence-b1/string_path_search'
 EMAIL = 'JLawrenceB1@gmail.com'
 AUTHOR = 'Larry Barnett'
 REQUIRES_PYTHON = '>=3.4.0'
-VERSION = '0.3.1'
+VERSION = '0.3.2'
 
 # What packages are required for this module to be executed?
 REQUIRED = [

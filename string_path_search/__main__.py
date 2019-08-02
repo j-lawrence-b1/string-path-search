@@ -117,8 +117,7 @@ def parse_args():
         'exclusions': set(),
     }
 
-    program_name = sys.argv[0]
-    sys_args = sys.args[1:]
+    sys_args = sys.argv[1:]
 
     # Process option flags.
     try:
@@ -142,7 +141,7 @@ def parse_args():
 
     if '-v' in opts and '-q' in opts:
         eprint("Improper usage: Use -v or -q, not both.")
-        print_usage(os.path.basename(program_name))
+        print_usage()
         sys.exit(2)
     for opt, arg in opts:
         if opt in ("-B", "--branding-text"):
@@ -207,7 +206,7 @@ def main():
     # zero arguments. So, we get them internally.
 
     # Parse the command line.
-    config = parse_args(sys.argv)
+    config = parse_args()
 
     # Validate some options.
     if config['branding_logo'] and not os.path.exists(config['branding_logo']):
