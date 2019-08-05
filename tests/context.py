@@ -7,4 +7,7 @@ import sys
 import os
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-import string_path_search
+from string_path_search.scanner import Scanner, CSVOutput, ExcelOutput
+from string_path_search.utils import random_string, calculate_md5, make_dir_safe, eprint,\
+    get_logger
+from string_path_search.__main__ import parse_args, print_usage, main
