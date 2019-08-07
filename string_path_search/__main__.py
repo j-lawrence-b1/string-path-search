@@ -253,10 +253,9 @@ def main():
                                          '-'.join(["scan", time.strftime('%Y%m%d%H%M')]))
     if config['excel_output']:
         config['output_file'] += ".xlsx"
-        output = ExcelOutput(scanner.HEADERS, scanner.get_results(), config)
     else:
         config['output_file'] += ".csv"
-        output = CSVOutput(scanner.HEADERS, scanner.get_results(), config)
+    output = get_output(config)
     output.output()
 
 

@@ -20,7 +20,7 @@ class ScannerTestSuite(unittest.TestCase):
     # Set program defaults.
     config = dict(branding_text=None,
                   branding_logo=None,
-                  excel_output=True,
+                  excel_output=False,
                   ignore_case=True,
                   log_level=logging.INFO,
                   output_dir=OUTPUT_DIR,
@@ -32,7 +32,7 @@ class ScannerTestSuite(unittest.TestCase):
                   search_strings={'foo', 'bar', 'baz'},
                   exclusions=set())
 
-    def tearDown(self) -> None:
+    def tearDown(self):
         """Cleanup after each test."""
         if os.path.exists(self.config['temp_dir']):
             shutil.rmtree(self.config['temp_dir'])
@@ -44,6 +44,10 @@ class ScannerTestSuite(unittest.TestCase):
         self.assertIsInstance(obj, Scanner)
 
     def test_text_scan(self):
+        self.config['scan_root'] = os.path.join(DATA_DIR, 'small', 'uwaptexit.pas')
+        self.config['search_strings'] = {'TVisWaptExit.SetCountDown'}
+        obj = Scanner(self.config)
+        obj.scan()
         self.assertTrue(False)
 
     def test_binary_scan(self):

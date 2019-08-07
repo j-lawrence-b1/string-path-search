@@ -28,6 +28,12 @@ ZIP_REGEX = re.compile(r'\.zip$')
 ARCH_REGEX = re.compile(r'\.(?:cab|cpio|ear|jar|rpm|tar|tar.gz|tgz|tar.bzip2'
                         r'|tar.bz2|tbz2|war|zip)$')
 
+def get_output(config):
+    """Factory method for constructing the scanner output object."""
+    if excel_output:
+        return ExcelOutput(scanner.HEADERS, scanner.get_results(), config)
+    else:
+        return CSVOutput(scanner.HEADERS, scanner.get_results(), config)
 
 # pylint: disable=R0902
 # R0902 = too-many-instance-attributes
@@ -59,8 +65,8 @@ class Scanner:
         if sys.version_info[0] + sys.version_info[1] / 10 < 3.4:
             LOGGER.error("ERROR: This script requires Python 3.4 or greater.")
             sys.exit(-1)
-        if not os.path.isdir(configs['scan_root']):
-            raise ValueError("scan_root {0} is not a directory".format(
+        if not os.path.exists(configs['scan_root']):
+            raise ValueError("scan_root {0} does not exist".format(
                 configs['scan_root']))
         if not self.search_strings:
             raise ValueError("No strings to search!")
@@ -235,6 +241,7 @@ class Scanner:
     def scan(self):
         """Scan scan_root and print matches."""
 
+
         LOGGER.info("Scanning %s", self.scan_root)
 
         self.scan_results = {}
@@ -329,7 +336,6 @@ class CSVOutput(Output):
         LOGGER.info("Writing output to %s", self.output_file)
         out_fh.close()
 
-
 class ExcelOutput(Output):
     """
     Outputter for Microsoft Excel (.xlsx) output.
@@ -380,5 +386,4 @@ class ExcelOutput(Output):
 
         LOGGER.info("Writing output to %s", self.output_file)
         workbook.close()
-
 # pylint: enable=R0903
