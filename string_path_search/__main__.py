@@ -50,7 +50,7 @@ import time
 # Import 3rd party modules.
 
 # Import project modules.
-from string_path_search import Scanner, CSVOutput, ExcelOutput, eprint, LOGGER, make_dir_safe
+from string_path_search import Scanner, eprint, LOGGER, make_dir_safe
 
 # Define constants.
 
@@ -106,7 +106,7 @@ def parse_args():
         'branding_text': None,
         'branding_logo': None,
         'excel_output': True,
-        'ignore_case': True,
+        'ignore_case': False,
         'log_level': logging.INFO,
         'output_dir': os.getcwd(),
         'search_strings_file': None,
@@ -206,58 +206,50 @@ def main():
     # zero arguments. So, we get them internally.
 
     # Parse the command line.
-    config = parse_args()
+    configs = parse_args()
 
     # Validate some options.
-    if config['branding_logo'] and not os.path.exists(config['branding_logo']):
+    if configs['branding_logo'] and not os.path.exists(configs['branding_logo']):
         eprint("The <branding-logo> , {0}, doesn't exist.".format(
-            config['branding_logo']))
+            configs['branding_logo']))
         sys.exit(2)
 
-    if not os.path.exists(config['output_dir']) or not os.path.isdir(config['output_dir']):
+    if not os.path.exists(configs['output_dir']) or not os.path.isdir(configs['output_dir']):
         eprint("The <output-dir> , {0}, doesn't exist or isn't a "
-               "directory.".format(config['output_dir']))
+               "directory.".format(configs['output_dir']))
         sys.exit(2)
-    make_dir_safe(config['temp_dir'], True)
+    make_dir_safe(configs['temp_dir'], True)
 
-    if config['search_strings_file']:
-        if not os.path.exists(config['search_strings_file']):
+    if configs['search_strings_file']:
+        if not os.path.exists(configs['search_strings_file']):
             eprint("-s <search-strings-file> argument, {0}, doesn't "
-                   "exist".format(config['search_strings_file']))
+                   "exist".format(configs['search_strings_file']))
             sys.exit(2)
-        with open(config['search_strings_file'], "rt", encoding="utf-8") as fid:
+        with open(configs['search_strings_file'], "rt", encoding="utf-8") as fid:
             for line in fid:
-                config['search_strings'].add(line.strip())
+                configs['search_strings'].add(line.strip())
 
-    if config['exclusions_file']:
-        if not os.path.exists(config['exclusions_file']):
+    if configs['exclusions_file']:
+        if not os.path.exists(configs['exclusions_file']):
             eprint("-s <exclusions_file> argument, {0}, doesn't "
-                   "exist".format(config['exclusions_file']))
+                   "exist".format(configs['exclusions_file']))
             sys.exit(2)
-        with open(config['exclusions_file'], "rt", encoding="utf-8") as fid:
+        with open(configs['exclusions_file'], "rt", encoding="utf-8") as fid:
             for line in fid:
-                config['exclusions'].add(line.strip().casefold())
+                configs['exclusions'].add(line.strip().casefold())
 
-    if not os.path.exists(config['scan_root']) or not os.path.isdir(config['scan_root']):
-        eprint("The <scan-root> , {0}, doesn't exist or isn't a "
-               "directory.".format(config['scan_root']))
+    if not os.path.exists(configs['scan_root']):
+        eprint("The <scan-root> , {0}, doesn't exist.".format(configs['scan_root']))
         sys.exit(2)
 
     # Setup the logger
-    LOGGER.setLevel(config['log_level'])
+    LOGGER.setLevel(configs['log_level'])
     LOGGER.info('Startup')
 
-    scanner = Scanner(config)
+    scanner = Scanner(configs)
     scanner.scan()
-    config['output_file'] = os.path.join(config['output_dir'],
-                                         '-'.join(["scan", time.strftime('%Y%m%d%H%M')]))
-    if config['excel_output']:
-        config['output_file'] += ".xlsx"
-    else:
-        config['output_file'] += ".csv"
-    output = get_output(config)
+    output = scanner.get_output(configs)
     output.output()
-
 
 if __name__ == '__main__':
     main()

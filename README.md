@@ -25,32 +25,30 @@ involved:
     "python". Ditto with pip.
   
 ## Installation from pypi:
-This method is preferred because it also installs a standalone
-executable string_path_search.exe in the local Scripts
-directory.
+This method is preferred because it installs the latest tested string_path_search version.
 <pre>
-$ python -m pip install string_path_search --user 
+$ python -m pip install --user string-path-search 
 </pre>
-**Note:** Pip will warn you if the local Scripts directory isn't in the
-shell's PATH. If not, you can add it via the control panel (Windows) or
-the .bashrc file (Linux).
 
 ## Installation from GitHub
 <pre>
 $ git clone git@github.com:j-lawrence-b1/string-path-search.git
-$ python string_path_search/setup.py install --user 
+$ python string_path_search/setup.py build install --user 
 </pre>
-
+**Note:** Installing with the '--user' option will install the string_path_search
+under your login's HOME directory (C:/Users/<user-name>/.local/Scripts on 
+Windows or /home/<user-name>/.local/bin on Linux). If you plan to run the
+ provided string_path_search.exe directly, you should add this directory to you
+ your shell's execution path.
 ## Usage
 Although you can import and use this package in other Python scripts,
 string_path_search is primarily intended to be invoked as a console app:
 <pre>
     $ python -m string_path_search [OPTIONS] &lt;scan-root&gt; [&lt;search-term&gt; [...]]
 </pre>
-or, if the .exe was installed via pip and the local python Scripts
-directory has been added to the shell's execution PATH:
+or, you can add run the standalone string_path_search.exe directly (see **Note,** above).
 <pre>
-    $ string_path_search [OPTIONS] &lt;scan-root&gt; [&lt;search-term&gt; [...]]
+    $ ~/.local/bin/string_path_search [OPTIONS] &lt;scan-root&gt; [&lt;search-term&gt; [...]]
 </pre>
 where:
 <pre>
@@ -86,11 +84,13 @@ where:
 Perform a caseless search of the test/data directory for any occurrence of
 'copyright', 'gpl', 'foo', 'bar', or 'baz' and output the results to a
 file called 'scan-&lt;timestamp>.csv' in the current working directory.
-<pre>$ python -m string_path_search -i test/data copyright gpl foo bar baz</pre>
-
+<pre>$ python -m string_path_search -i tests/data "copyright (c)" gpl foo bar baz</pre>
+ 
 Same as example 1, except output to an Excel spreadsheet:
-<pre>$ python -m string_path_search -i -e test/data copyright gpl foo bar baz</pre>
+<pre>$ python -m string_path_search -i -e tests/data "copyright (c)" gpl foo bar baz</pre>
 
+**Gotcha:** Use double-quotes for multi-word search strings. For some reason,
+single quotes screw up the command line parser.
 ## License
 string_path_search is distributed under the
 [MIT License](http://github.com/j-lawrence-b1/string-path-search/blob/master/LICENSE).

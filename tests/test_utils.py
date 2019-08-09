@@ -39,33 +39,3 @@ class ScannerTestSuite(unittest.TestCase):
         for f in os.listdir(self.config['output_dir']):
             os.remove(os.path.join(self.config['output_dir'], f))
 
-    def test_instantiation(self):
-        obj = Scanner(self.config)
-        self.assertIsInstance(obj, Scanner)
-
-    def test_text_scan(self):
-        self.assertTrue(False)
-
-    def test_binary_scan(self):
-        self.assertTrue(False)
-
-    def test_jar_scan(self):
-        self.assertTrue(False)
-
-    def test_tar_scan(self):
-        self.assertTrue(False)
-
-    def test_zip_scan(self):
-        self.assertTrue(False)
-
-    def test_case_insensitive_scan(self):
-        self.assertTrue(False)
-
-    def test_exclusion_file(self):
-        self.assertTrue(False)
-
-    def test_deep_hierarchy(self):
-        self.assertTrue(False)
-
-    def test_inner_archive_scan(self):
-        self.assertTrue(False)

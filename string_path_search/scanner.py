@@ -10,6 +10,7 @@ import re
 import shutil
 import sys
 import tarfile
+from time import strftime
 import unicodedata
 import zipfile
 
@@ -23,17 +24,10 @@ from .utils import calculate_md5, LOGGER, make_dir_safe, random_string
 # Define constants.
 DIR_REGEX = re.compile(r'[/]$')
 JAR_REGEX = re.compile(r'\.jar$')
-TAR_REGEX = re.compile(r'\.(?:tar|tar.gz|tgz|tar.bzip2|tar.bz2|tbz2)$')
+TAR_REGEX = re.compile(r'\.(?:tar|tar.gz|tgz|tar.bzip2|tar.bz2|tbz2|txz|tar.xz)$')
 ZIP_REGEX = re.compile(r'\.zip$')
 ARCH_REGEX = re.compile(r'\.(?:cab|cpio|ear|jar|rpm|tar|tar.gz|tgz|tar.bzip2'
-                        r'|tar.bz2|tbz2|war|zip)$')
-
-def get_output(config):
-    """Factory method for constructing the scanner output object."""
-    if excel_output:
-        return ExcelOutput(scanner.HEADERS, scanner.get_results(), config)
-    else:
-        return CSVOutput(scanner.HEADERS, scanner.get_results(), config)
+                        r'|tar.bz2|tbz2|tgz|tar.xz|war|zip)$')
 
 # pylint: disable=R0902
 # R0902 = too-many-instance-attributes
@@ -73,6 +67,17 @@ class Scanner:
         if self.scan_archives:
             make_dir_safe(configs['temp_dir'])
 
+    def get_output(self, configs):
+        """Factory method for constructing the scanner output object."""
+        configs['output_file'] = os.path.join(configs['output_dir'],
+                                              '-'.join(["scan", strftime('%Y%m%d%H%M')]))
+        if configs['excel_output']:
+            configs['output_file'] += ".xlsx"
+            return ExcelOutput(self.HEADERS, self.get_results(), configs)
+        else:
+            configs['output_file'] += ".csv"
+            return CSVOutput(self.HEADERS, self.get_results(), configs)
+
     def _walk(self, thing=None, parent=None):
         """Walk a tree based on thing."""
         if not thing:
@@ -93,8 +98,12 @@ class Scanner:
             try:
                 with open(thing, 'rb') as fid:
                     file_bytes = fid.read()
-                    yield (os.path.basename(thing),
-                           os.path.join(self.scan_root, os.path.dirname(thing)),
+                    location = self.scan_root
+                    if thing.startswith(location):
+                        location = os.path.dirname(thing)
+                    else:
+                        location = os.path.join(location, os.path.dirname(thing))
+                    yield (os.path.basename(thing), location,
                            calculate_md5(file_bytes), file_bytes)
             except FileNotFoundError:
                 LOGGER.error("Can't open file=%s", thing)
@@ -267,7 +276,7 @@ class Scanner:
                     self.stats['files_matched'], self.stats['files_scanned'])
 
     def get_results(self):
-        """Flatten search_results into an array of tuples."""
+        """Flatten search_results into a list of tuples."""
         results = []
         for match_str, result_rows in self.scan_results.items():
             for name, md5, path in result_rows:
