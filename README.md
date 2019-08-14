@@ -9,7 +9,7 @@ in some unnecessary confusion: "string-path-search" (with hyphens) is the name o
 ## Why not just use ***find*** and ***grep***?
 * Avoids long, hard-to-debug shell commands with lots of backticks and parentheses.
 * Works on Windows without needing to install a unix work-alike like Cygwin.
-* Searches for a bunch of different strings in one go.
+* Searches within binary files (e.g. exeutable, object, class files, etc.).
 * Searches within (possibly compressed) jar, tar, or zip archives.
 * Outputs results in CSV or Excel format. 
 
