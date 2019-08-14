@@ -33,7 +33,7 @@ involved:
   
 ## Installation from pypi:
 <pre>
-> python -m pip install --user string-path-search 
+> python -m pip install [--user] string-path-search 
 </pre>
 
 ## Installation from GitHub
@@ -43,13 +43,14 @@ https://github.com/j-lawrence-b1/string-path-search/releases/latest
  dependencies using the included setup.py script (which uses pip internally!).
 <pre>
 > chdir &lt;my-downloads-dir&gt;\\string-path-search-0.3.2
-> python setup.py build install --user 
+> python setup.py build install [--user] 
 </pre>
 **Note:** Installing with the '--user' option will install the string_path_search Python package
 under your login's HOME directory (C:/Users/<user-name>/.local/Scripts on 
 Windows or /home/<user-name>/.local/bin on Linux). If you plan to run the
  provided string_path_search.exe directly, you should add this directory to you
  your shell's execution path.
+ 
 ## Usage
 Although you can import and use this package in other Python scripts,
 string_path_search is primarily intended to be invoked as a console app:
