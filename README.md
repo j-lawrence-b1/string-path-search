@@ -39,7 +39,8 @@ involved:
 ## Installation from GitHub
 You can also download string-path-search with your browser as a .zip or .tgz archive from 
 https://github.com/j-lawrence-b1/string-path-search/releases/latest 
- into any convenient directory. Once unpacked, you can install string_path_search and its 
+ into any convenient directory. **HOWEVER** pip is still required to install
+ the string_path_search module dependencies. Once unpacked, you can install string_path_search and its 
  dependencies using the included setup.py script (which uses pip internally!).
 <pre>
 > chdir &lt;my-downloads-dir&gt;\\string-path-search-0.3.2
