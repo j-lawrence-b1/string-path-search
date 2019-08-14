@@ -44,7 +44,7 @@ def make_dir_safe(path, raise_errors=True):
         return path
 
     try:
-        os.makedirs(path, True)
+        os.makedirs(path, mode=0o777, exist_ok=True)
     except OSError as exc:
         eprint("ERROR: Path=%s does not exist and cannot be created. Errno=%d", path,
                exc.errno)

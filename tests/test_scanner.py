@@ -3,13 +3,15 @@
 
 """Scanner class unit tests."""
 
-from pathlib import Path
+import csv
 import logging
 import os
+from pathlib import Path
 import shutil
 import unittest
+import xlrd
 
-from .context import Scanner, make_dir_safe
+from .context import CSVOutput, ExcelOutput, Output, Scanner, make_dir_safe
 
 class ScannerTestSuite(unittest.TestCase):
     """Scanner class unit test class."""
@@ -17,20 +19,28 @@ class ScannerTestSuite(unittest.TestCase):
     DATA_DIR = "tests/data"
     OUTPUT_DIR = "temp"
     TEMP_DIR = "tests/temp"
+    config = dict()
     # Set program defaults.
-    config = dict(branding_text=None,
+
+    @classmethod
+    def get_config(cls):
+        return dict(branding_text=None,
                   branding_logo=None,
                   excel_output=False,
                   ignore_case=False,
                   log_level=logging.INFO,
-                  output_dir=OUTPUT_DIR,
+                  output_dir=cls.OUTPUT_DIR,
                   search_strings_file=None,
-                  temp_dir=TEMP_DIR,
+                  temp_dir=cls.TEMP_DIR,
                   scan_archives=False,
-                  scan_root=DATA_DIR,
+                  scan_root=cls.DATA_DIR,
                   exclusions_file=None,
                   search_strings={'foo', 'bar', 'baz'},
                   exclusions=set())
+
+    def setUp(self):
+        """Initialize the configs."""
+        self.config = ScannerTestSuite.get_config()
 
     def tearDown(self):
         """Cleanup after each test."""
@@ -100,8 +110,8 @@ class ScannerTestSuite(unittest.TestCase):
         self.config['ignore_case'] = True
         obj2 = Scanner(self.config)
         obj2.scan()
-        self.assertTrue(self.contains_result(obj2.get_results(), {string_to_find:[
-            file_to_scan]}, True))
+        self.assertTrue(self.contains_result(obj2.get_results(), {string_to_find:[file_to_scan]},
+                                             True))
 
     def test_binary_file_scan(self):
         file_to_scan = 'main.o'
@@ -119,9 +129,10 @@ class ScannerTestSuite(unittest.TestCase):
                            'time.c']}
         self.config['scan_root'] = os.path.join(self.DATA_DIR, dir_to_scan)
         self.config['search_strings'] = {string_to_find}
+        self.config['ignore_case'] = True
         obj = Scanner(self.config)
         obj.scan()
-        self.assertTrue(self.contains_result(obj.get_results(), desired_results))
+        self.assertTrue(self.contains_result(obj.get_results(), desired_results, True))
 
     def test_jar_scan(self):
         file_to_scan = 'sakai-calendar-util-19.2.jar'
@@ -194,6 +205,7 @@ class ScannerTestSuite(unittest.TestCase):
                                            'scroll2.tk']}
         self.config['scan_root'] = os.path.join(self.DATA_DIR, dir_to_scan)
         self.config['search_strings'] = {string_to_find}
+        self.config['ignore_case'] = True
         obj = Scanner(self.config)
         obj.scan()
         self.assertTrue(self.contains_result(obj.get_results(), desired_results))
@@ -225,3 +237,52 @@ class ScannerTestSuite(unittest.TestCase):
         obj = Scanner(self.config)
         obj.scan()
         self.assertTrue(self.contains_result(obj.get_results(), desired_results))
+
+    def test_get_csv_output(self):
+        self.config['excel_output'] = False
+        obj = Scanner(self.config)
+        self.assertIsInstance(Output.get_output(obj.HEADERS, obj.get_results(), self.config),
+                              CSVOutput)
+
+    def test_get_excel_output(self):
+        self.config['excel_output'] = True
+        obj = Scanner(self.config)
+        self.assertIsInstance(Output.get_output(obj.HEADERS, obj.get_results(), self.config),
+                              ExcelOutput)
+
+    def test_csv_output(self):
+        file_to_scan = 'zipped-tar-jar.zip'
+        string_to_find = 'Copyright (c)'
+        self.config['scan_archives'] = True
+        self.config['scan_root'] = os.path.join(self.DATA_DIR, 'small', file_to_scan)
+        self.config['search_strings'] = {string_to_find}
+        scanner = Scanner(self.config)
+        scanner.scan()
+        self.config['excel_output'] = False
+        output = Output.get_output(scanner.HEADERS, scanner.get_results(), self.config)
+        output.output();
+        self.assertTrue(os.path.exists(output.output_file))
+        with open(output.output_file, newline='', encoding='utf-8', mode='r') as csv_file:
+            csv_reader = csv.reader(csv_file, dialect='excel')
+            count = 0
+            for row in csv_reader:
+                count += 1
+        self.assertEqual(count-1, len(scanner.get_results()))
+
+    def test_excel_output(self):
+        file_to_scan = 'zipped-tar-jar.zip'
+        string_to_find = 'Copyright (c)'
+        desired_results = {string_to_find:['InFunction.java', 'Value.java',
+                                           'cci_mpf_test_conf_default.vh']}
+        self.config['scan_archives'] = True
+        self.config['scan_root'] = os.path.join(self.DATA_DIR, 'small', file_to_scan)
+        self.config['search_strings'] = {string_to_find}
+        scanner = Scanner(self.config)
+        scanner.scan()
+        self.config['excel_output'] = True
+        output = Output.get_output(scanner.HEADERS, scanner.get_results(), self.config)
+        output.output();
+        self.assertTrue(os.path.exists(output.output_file))
+        wb = xlrd.open_workbook(output.output_file)
+        sheet = wb.sheet_by_index(0)
+        self.assertEqual(sheet.nrows-1, len(scanner.get_results()))

@@ -18,6 +18,8 @@ parts/
 sdist/
 var/
 venv/
+venv-*/
+venv-*/
 npm-debug.log
 *.egg-info/
 .installed.cfg

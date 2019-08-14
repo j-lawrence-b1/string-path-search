@@ -1,6 +1,11 @@
-# string_path_search Walk a directory tree, searching for files
-containing any of a set of text strings.
+# string-path-search
+ Walk a directory tree, searching for files containing any of a set of text strings.
 
+**Note:** The different naming conventions for projects on GitHub vs packages in Python results 
+in some unnecessary confusion: "string-path-search" (with hyphens) is the name of the project on
+ GitHub. This project provides the "string_path_search" (with underscores) Python package. 
+ Please bear with me.
+ 
 ## Why not just use ***find*** and ***grep***?
 * Avoids long, hard-to-debug shell commands with lots of backticks and parentheses.
 * Works on Windows without needing to install a unix work-alike like Cygwin.
@@ -9,11 +14,13 @@ containing any of a set of text strings.
 * Outputs results in CSV or Excel format. 
 
 ## System requirements
-* Tested on Windows 10 and Linux. May work on other platforms supported by Python.
+* Tested on Windows 10, Linux, and Windows 10/cygwin. May also work on other platforms
+ supported by Python.
 * Python 3.4 or later (https://www.python.org/downloads/).
-* Pip module appropriate to the installed Python version.
-  (https://pip.pypa.io/en/stable/installing/).
-
+* A Python pip module appropriate to the installed Python version
+ (https://pip.pypa.io/en/stable/installing/). It is *possible* to install Python packages, 
+ including string_path_search, without pip, but it's a lot harder without it.
+ 
 ## A note about installing python and pip
 Some Linux systems (also Cygwin on Windows) come with python 2
 pre-installed. You have to install python 3 yourself. There are gotchas
@@ -25,17 +32,20 @@ involved:
     "python". Ditto with pip.
   
 ## Installation from pypi:
-This method is preferred because it installs the latest tested string_path_search version.
 <pre>
-$ python -m pip install --user string-path-search 
+> python -m pip install --user string-path-search 
 </pre>
 
 ## Installation from GitHub
+You can also download string-path-search with your browser as a .zip or .tgz archive from 
+https://github.com/j-lawrence-b1/string-path-search/releases/latest 
+ into any convenient directory. Once unpacked, you can install string_path_search and its 
+ dependencies using the included setup.py script (which uses pip internally!).
 <pre>
-$ git clone git@github.com:j-lawrence-b1/string-path-search.git
-$ python string_path_search/setup.py build install --user 
+> chdir &lt;my-downloads-dir&gt;\\string-path-search-0.3.2
+> python setup.py build install --user 
 </pre>
-**Note:** Installing with the '--user' option will install the string_path_search
+**Note:** Installing with the '--user' option will install the string_path_search Python package
 under your login's HOME directory (C:/Users/<user-name>/.local/Scripts on 
 Windows or /home/<user-name>/.local/bin on Linux). If you plan to run the
  provided string_path_search.exe directly, you should add this directory to you

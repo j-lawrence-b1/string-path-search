@@ -67,17 +67,6 @@ class Scanner:
         if self.scan_archives:
             make_dir_safe(configs['temp_dir'])
 
-    def get_output(self, configs):
-        """Factory method for constructing the scanner output object."""
-        configs['output_file'] = os.path.join(configs['output_dir'],
-                                              '-'.join(["scan", strftime('%Y%m%d%H%M')]))
-        if configs['excel_output']:
-            configs['output_file'] += ".xlsx"
-            return ExcelOutput(self.HEADERS, self.get_results(), configs)
-        else:
-            configs['output_file'] += ".csv"
-            return CSVOutput(self.HEADERS, self.get_results(), configs)
-
     def _walk(self, thing=None, parent=None):
         """Walk a tree based on thing."""
         if not thing:
@@ -291,7 +280,7 @@ class Output:
     Format an output tuple to the desired device.
     """
 
-    def __init__(self, header, rows, config):
+    def __init__(self, header, rows, configs):
         """
         Set it up.
 
@@ -306,10 +295,22 @@ class Output:
 
         """
         self.rows = rows
-        self.output_file = config['output_file']
+        self.output_file = configs['output_file']
         self.header = header
-        self.branding_logo = config['branding_logo']
-        self.branding_text = config['branding_text']
+        self.branding_logo = configs['branding_logo']
+        self.branding_text = configs['branding_text']
+
+    @classmethod
+    def get_output(cls, headers, rows, configs):
+        """Factory method for constructing the output object."""
+        configs['output_file'] = os.path.join(configs['output_dir'],
+                                              '-'.join(["scan", strftime('%Y%m%d%H%M')]))
+        if configs['excel_output']:
+            configs['output_file'] += ".xlsx"
+            return ExcelOutput(headers, rows, configs)
+
+        configs['output_file'] += ".csv"
+        return CSVOutput(headers, rows, configs)
 
     @abstractmethod
     def output(self):
@@ -328,22 +329,18 @@ class CSVOutput(Output):
         out_fh = sys.stdout
         if self.output_file:
             try:
-                make_dir_safe(self.output_file)
-                out_fh = open(self.output_file, encoding='utf-8', mode='w')
+                make_dir_safe(os.path.dirname(self.output_file))
             except IOError:
                 LOGGER.error("Can't open file=%s", self.output_file)
                 raise
-        csv_writer = csv.writer(out_fh, delimeter=',', quotechar='"',
-                                quoting=csv.QUOTE_MINIMAL)
-        if self.branding_text:
-            csv_writer.writerow(self.branding_text)
-        for header_row in self.header:
-            csv_writer.writerow(header_row)
-        for row in self.rows:
-            csv_writer.writerow(row)
-
         LOGGER.info("Writing output to %s", self.output_file)
-        out_fh.close()
+        with open(self.output_file, newline='', encoding='utf-8', mode='w') as out_fh:
+            csv_writer = csv.writer(out_fh, dialect='excel')
+            if self.branding_text:
+                csv_writer.writerow(self.branding_text)
+            csv_writer.writerow(self.header)
+            for row in self.rows:
+                csv_writer.writerow(row)
 
 class ExcelOutput(Output):
     """

@@ -50,7 +50,7 @@ import time
 # Import 3rd party modules.
 
 # Import project modules.
-from string_path_search import Scanner, eprint, LOGGER, make_dir_safe
+from string_path_search import Scanner, eprint, LOGGER, make_dir_safe, Output
 
 # Define constants.
 
@@ -105,7 +105,7 @@ def parse_args():
     config = {
         'branding_text': None,
         'branding_logo': None,
-        'excel_output': True,
+        'excel_output': False,
         'ignore_case': False,
         'log_level': logging.INFO,
         'output_dir': os.getcwd(),
@@ -248,7 +248,7 @@ def main():
 
     scanner = Scanner(configs)
     scanner.scan()
-    output = scanner.get_output(configs)
+    output = Output.get_output(scanner.HEADERS, scanner.get_results(), configs)
     output.output()
 
 if __name__ == '__main__':

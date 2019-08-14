@@ -1,11 +1,12 @@
+PYTHON=python.exe
 PROJECT_ROOT=$(MAKEDIR)
-VENV=$(PROJECT_ROOT)\venv
-DIST=$(PROJECT_ROOT)\dist
+VENV=$(PROJECT_ROOT)\venv-windows
+DIST=$(PROJECT_ROOT)dist
 TEMP=$(PROJECT_ROOT)\tests\temp
-BUILD=$(PROJECT_ROOT)/build
+BUILD=$(PROJECT_ROOT)\build
 OUT_DIR=$(PROJECT_ROOT)\temp
-EGG_INFO=$(PROJECT_ROOT)\string_path_search.egg-info
-MAKEFILE_LIST=$(PROJECT_ROOT)\Makefile
+EGG_INFO=string_path_search.egg-info
+MAKEFILE_LIST=$(PROJECT_ROOT)\Makefile.windows
 
 .phony:
 
@@ -13,34 +14,38 @@ help: .phony ## Show this help message.
 	@echo 'usage: make [target] ...'
 	@echo
 	@echo 'targets:'
-	@echo "  real-clean       ## In addition to the regular clean, cleanup venv
-	@echo "  clean            ## cleanup build and distribution products
-	@echo "  clean-venv       ## Cleanup this project's Python virtual environment
-	@echo "  venv             ## Setup a Python virtual environment for this project.
-	@echo "  install-packages ## Install third party packages required to build
-	@echo "  test:            ## Use nose2 to run the test scripts.
+	@echo "  real-clean       ## In addition to the regular clean, cleanup venv"
+	@echo "  clean            ## cleanup build and distribution products"
+	@echo "  clean-venv       ## Cleanup this project's Python virtual environment"
+	@echo "  venv             ## Setup a Python virtual environment for this project"
+	@echo "  install-packages ## Install third party packages required to build"
+  @echo "  build:           ## Build and install string_path_search into the virtual environment"
+	@echo "  test:            ## Use nose2 to run the test scripts."
 
 real-clean: clean-venv clean ## In addition to the regular clean, cleanup the python virtual environment.
 
 clean: .phony ## cleanup build and distribution products
-	@for %%D in ($(BUILD) $(DIST) $(EGG_INFO)) do ( if EXIST %%D (echo "cleaning %%D"; rmdir /q /s %%D ))
+	@if exist $(BUILD) ( del /f/q/s $(BUILD) & rd /q/s $(BUILD) )
+	@if exist $(DIST) ( del /f/q/s $(DIST) & rd /q/s $(DIST) )
+	@if exist $(EGG_INFO) ( del /f/q/s $(EGG_INFO) & rd /q/s $(EGG_INFO) )
 
 clean-venv: .phony ## Cleanup this project's Python virtual environment
-	@if EXIST $(VENV) ( \
-	    $(VENV)/Scripts/deactivate; \
-      rmdir /s /q $(VENV); \
-    )
+	if EXIST $(VENV) ( del /f/q/s $(VENV) & rd /q/s $(VENV) )
 
 venv: $(VENV) ## Setup a Python virtual environment for this project.
 
 $(VENV):
-	@$(PYTHON) -m venv $(VENV)
+	$(PYTHON) -m venv $(VENV)
 
 install-packages: venv ## Install third party packages required to build this project
-	@$(VENV)/Scripts/activate; \
-    $(PYTHON) -m pip install --upgrade pylint nose2 setuptools Pillow xlsxwriter twine
+	@$(VENV)\Scripts\activate \
+		& $(PYTHON) -m pip install --upgrade pip \
+	 	& $(PYTHON) -m pip install --upgrade pylint nose2 setuptools twine
 
-test:.phony ## Use nose2 to run the test scripts.
-	@$(VENV)/Scripts/activate; \
-    $(PYthon) -m nose2
+build: install-packages ## Build and install string_path_search into the virtual environment
+	@$(VENV)\Scripts\activate \
+		& $(PYTHON) setup.py build install
+
+test: build ## Use nose2 to run the test scrip.
+	@$(VENV)\Scripts\activate &  $(PYTHON) -m nose2 --verbose
 
