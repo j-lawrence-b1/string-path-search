@@ -40,7 +40,7 @@ $(VENV):
 install-packages: venv ## Install third party packages required to build this project
 	@$(VENV)\Scripts\activate \
 		& $(PYTHON) -m pip install --upgrade pip \
-	 	& $(PYTHON) -m pip install --upgrade pylint nose2 setuptools twine
+	 	& $(PYTHON) -m pip install --upgrade pylint nose2 setuptools wheel twine
 
 build: install-packages ## Build and install string_path_search into the virtual environment
 	@$(VENV)\Scripts\activate \

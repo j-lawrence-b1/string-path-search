@@ -42,7 +42,7 @@ ${VENV}:
 install-packages:venv ## Install third party packages required to build this project
 	. ${VENV}/bin/activate; \
     ${PYTHON} -m pip install --upgrade pip; \
-    ${PYTHON} -m pip install --upgrade pylint nose2 setuptools twine
+    ${PYTHON} -m pip install --upgrade pylint nose2 setuptools wheel twine
 
 install:install-packages ## Run setup.py build and install
 	. ${VENV}/bin/activate; ${PYTHON} setup.py install
