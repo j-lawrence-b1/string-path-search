@@ -57,7 +57,7 @@ string_path_search is primarily intended to be invoked as a console app:
 <pre>
     $ python -m string_path_search [OPTIONS] &lt;scan-root&gt; [&lt;search-term&gt; [...]]
 </pre>
-or, you can add run the standalone string_path_search.exe directly (see **Note,** above).
+or, you can add run the "standalone" (not really) string_path_search.exe directly.
 <pre>
     $ ~/.local/bin/string_path_search [OPTIONS] &lt;scan-root&gt; [&lt;search-term&gt; [...]]
 </pre>
