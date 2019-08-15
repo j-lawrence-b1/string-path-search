@@ -53,13 +53,15 @@ Windows or /home/&lt;user-name&gt;/.local/bin on Linux). If you plan to run the
  
 ## Usage
 Although you can import and use this package in other Python scripts,
-string_path_search is primarily intended to be invoked as a console app:
+string_path_search is primarily intended to be invoked as a command you type
+into a bash (Linux/Cygwin) or cmd.exe (Windows) terminal window:
 <pre>
     $ python -m string_path_search [OPTIONS] &lt;scan-root&gt; [&lt;search-term&gt; [...]]
 </pre>
 or, you can add run the "standalone" (not really) string_path_search.exe directly.
+Assuming the string_path_search executable is in your shell's PATH (see **Note**, above):
 <pre>
-    $ ~/.local/bin/string_path_search [OPTIONS] &lt;scan-root&gt; [&lt;search-term&gt; [...]]
+    $ string_path_search [OPTIONS] &lt;scan-root&gt; [&lt;search-term&gt; [...]]
 </pre>
 where:
 <pre>
@@ -108,6 +110,6 @@ string_path_search is distributed under the
 
 ## Disclaimer regarding the test data:
 
-The files in the test/data folder were randomly downloaded from publicly 
-available Open Source projects. Distributing these materials with string_path_search as 
-test data may or may not be in violation of the applicable licenses.
+The files in the tests/data folder were randomly downloaded from publicly 
+available Open Source projects. Distributing these materials with string_path_search
+may or may not be in violation of the applicable licenses.
