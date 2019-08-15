@@ -46,8 +46,8 @@ https://github.com/j-lawrence-b1/string-path-search/releases/latest
 > python setup.py build install [--user] 
 </pre>
 **Note:** Installing with the '--user' option will install the string_path_search Python package
-under your login's HOME directory (C:/Users/<user-name>/.local/Scripts on 
-Windows or /home/<user-name>/.local/bin on Linux). If you plan to run the
+under your login's HOME directory (C:/Users/&lt;user-name&gt;/.local/Scripts on 
+Windows or /home/&lt;user-name&gt;/.local/bin on Linux). If you plan to run the
  provided string_path_search.exe directly, you should add this directory to you
  your shell's execution path.
  
