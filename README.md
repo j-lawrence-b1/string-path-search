@@ -25,7 +25,7 @@ in some unnecessary confusion: "string-path-search" (with hyphens) is the name o
 Some Linux systems (also Cygwin on Windows) come with python 2
 pre-installed. You have to install python 3 yourself. There are gotchas
 involved:
-1. The "python" and "pip" package names on these platforms be reserved for version 2. It may not be as easy as 
+1. The "python" and "pip" package names on these systems may be reserved for version 2. It may not be as easy as 
  "apt-get install python3" either. The latest package might be called "python3.7" or similar.
   Ditto with pip.
 2.  Once installed, the python 3 binary may be called "python3", not
