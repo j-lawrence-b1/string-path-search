@@ -25,7 +25,7 @@ in some unnecessary confusion: "string-path-search" (with hyphens) is the name o
 Some Linux systems (also Cygwin on Windows) come with python 2
 pre-installed. You have to install python 3 yourself. There are gotchas
 involved:
-1. The "python" and "pip" package names on these systems may be reserved for version 2. It may not be as easy as 
+1. The "python" and "pip" packages may be reserved for version 2. It may not be as easy as 
  "apt-get install python3" either. The latest package might be called "python3.7" or similar.
   Ditto with pip.
 2.  Once installed, the python 3 binary may be called "python3", not
@@ -33,7 +33,7 @@ involved:
   
 ## Installation from pypi:
 <pre>
-> python -m pip install [--user] string-path-search 
+    &gt; python -m pip install [--user] string-path-search 
 </pre>
 
 ## Installation from GitHub
@@ -42,8 +42,8 @@ https://github.com/j-lawrence-b1/string-path-search/releases/latest
  into any convenient directory. unpacked, you can install string_path_search and its 
  dependencies using the included setup.py script **which uses pip internally!**
 <pre>
-> chdir &lt;my-downloads-dir&gt;\\string-path-search-0.3.2
-> python setup.py build install [--user] 
+    &gt; chdir &lt;my-downloads-dir&gt;\string-path-search-0.3.3
+    &gt; python setup.py build install [--user] 
 </pre>
 **Note:** Installing with the '--user' option will install the string_path_search Python package
 under your login's HOME directory (C:/Users/&lt;user-name&gt;/.local/Scripts on 
@@ -56,12 +56,12 @@ Although you can import and use this package in other Python scripts,
 string_path_search is primarily intended to be invoked as a command you type
 into a bash (Linux/Cygwin) or cmd.exe (Windows) terminal window:
 <pre>
-    $ python -m string_path_search [OPTIONS] &lt;scan-root&gt; [&lt;search-term&gt; [...]]
+&gt; python -m string_path_search [OPTIONS] &lt;scan-root&gt; [&lt;search-term&gt; [...]]
 </pre>
 or, you can add run the "standalone" (not really) string_path_search.exe directly.
 Assuming the string_path_search executable is in your shell's PATH (see **Note**, above):
 <pre>
-    $ string_path_search [OPTIONS] &lt;scan-root&gt; [&lt;search-term&gt; [...]]
+&gt; string_path_search [OPTIONS] &lt;scan-root&gt; [&lt;search-term&gt; [...]]
 </pre>
 where:
 <pre>
@@ -97,10 +97,10 @@ where:
 Perform a caseless search of the test/data directory for any occurrence of
 'copyright', 'gpl', 'foo', 'bar', or 'baz' and output the results to a
 file called 'scan-&lt;timestamp>.csv' in the current working directory.
-<pre>$ python -m string_path_search -i tests/data "copyright (c)" gpl foo bar baz</pre>
+<pre>&gt; python -m string_path_search -i tests/data "copyright (c)" gpl foo bar baz</pre>
  
 Same as example 1, except output to an Excel spreadsheet:
-<pre>$ python -m string_path_search -i -e tests/data "copyright (c)" gpl foo bar baz</pre>
+<pre>&gt; python -m string_path_search -i -e tests/data "copyright (c)" gpl foo bar baz</pre>
 
 **Gotcha:** Use double-quotes for multi-word search strings. For some reason,
 single quotes screw up the command line parser.
