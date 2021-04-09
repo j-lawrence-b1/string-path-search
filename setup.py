@@ -23,7 +23,7 @@ VERSION = '0.3.3'
 # What packages are required for this module to be executed?
 REQUIRED = [
     'Pillow',
-    'xlrd',
+    'openpyxl',
     'xlsxwriter',
 ]
 

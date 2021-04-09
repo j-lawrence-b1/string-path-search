@@ -7,57 +7,59 @@ import csv
 import logging
 import os
 from pathlib import Path
+import pytest
 import shutil
-import unittest
-import xlrd
+import openpyxl
 
 from .context import CSVOutput, ExcelOutput, Output, Scanner, make_dir_safe
 
-class ScannerTestSuite(unittest.TestCase):
+DATA_DIR = "tests/data"
+OUTPUT_DIR = "temp"
+TEMP_DIR = "tests/temp"
+
+
+class TestScanner:
     """Scanner class unit test class."""
 
-    DATA_DIR = "tests/data"
-    OUTPUT_DIR = "temp"
-    TEMP_DIR = "tests/temp"
-    config = dict()
-    # Set program defaults.
+    @staticmethod
+    @pytest.fixture
+    def config():
+        return dict(
+            branding_text=None,
+            branding_logo=None,
+            excel_output=False,
+            ignore_case=False,
+            log_level=logging.INFO,
+            output_dir=OUTPUT_DIR,
+            search_strings_file=None,
+            temp_dir=TEMP_DIR,
+            scan_archives=False,
+            scan_root=DATA_DIR,
+            exclusions_file=None,
+            search_strings={"foo", "bar", "baz"},
+            exclusions=set(),
+        )
 
-    @classmethod
-    def get_config(cls):
-        return dict(branding_text=None,
-                  branding_logo=None,
-                  excel_output=False,
-                  ignore_case=False,
-                  log_level=logging.INFO,
-                  output_dir=cls.OUTPUT_DIR,
-                  search_strings_file=None,
-                  temp_dir=cls.TEMP_DIR,
-                  scan_archives=False,
-                  scan_root=cls.DATA_DIR,
-                  exclusions_file=None,
-                  search_strings={'foo', 'bar', 'baz'},
-                  exclusions=set())
-
-    def setUp(self):
+    @staticmethod
+    def setUp(config):
         """Initialize the configs."""
-        self.config = ScannerTestSuite.get_config()
+        for dir in (config["temp_dir"], config["output_dir"]):
+            Path(dir).mkdir(parents=True, exist_ok=True)
 
-    def tearDown(self):
+    @staticmethod
+    def tearDown(config):
         """Cleanup after each test."""
-        if os.path.exists(self.config['temp_dir']):
-            shutil.rmtree(self.config['temp_dir'])
-        for f in os.listdir(self.config['output_dir']):
-            os.remove(os.path.join(self.config['output_dir'], f))
+        for dir in (config["temp_dir"], config["output_dir"]):
+            shutil.rmtree(dir)
 
-    def contains_result(self, results, desired_results, ignore_case=False):
+    @staticmethod
+    def contains_result(actual_results, desired_results, ignore_case=False):
         """
         Search for a particular match in a set of Scanner results
-
         Args:
             matched_results: A List of tuples as returned by Scanner.get_results()
             desired_results: A dictionary mapping search strings to a list of file names.
             file_name: A (base) filename that should contain search_string.
-
         Return:
             True if the result is found; False, otherwise.
         """
@@ -65,7 +67,7 @@ class ScannerTestSuite(unittest.TestCase):
         desired_hits = 0
         for values in desired_results.values():
             desired_hits += len(values)
-        for result in results:
+        for result in actual_results:
             matched_string = result[0]
             matched_file = result[2]
             if ignore_case:
@@ -78,211 +80,271 @@ class ScannerTestSuite(unittest.TestCase):
                     if matched_file in desired_results[matched_string]:
                         hits += 1
 
-        #print("matched {0} of {1} results".format(hits, desired_hits))
-
         if hits == desired_hits:
             return True
         else:
             return False
 
-    def test_instantiation(self):
-        obj = Scanner(self.config)
-        self.assertIsInstance(obj, Scanner)
+    @staticmethod
+    def test_instantiation(config):
+        obj = Scanner(config)
+        assert isinstance(obj, Scanner)
 
-    def test_text_file_scan(self):
-        file_to_scan = 'uwaptexit.pas'
-        string_to_find = 'TVisWaptExit.SetCountDown'
-        self.config['scan_root'] = os.path.join(self.DATA_DIR, 'small', file_to_scan)
-        self.config['search_strings'] = {string_to_find}
-        obj = Scanner(self.config)
+    @staticmethod
+    def test_text_file_scan(config):
+        file_to_scan = "uwaptexit.pas"
+        string_to_find = "TVisWaptExit.SetCountDown"
+        md5 = "7cc0d44415e378de57ac0f479456fbf4"
+        scan_dir = os.path.join(DATA_DIR, "small")
+        expected = [(string_to_find, md5, file_to_scan, scan_dir)]
+        config["scan_root"] = os.path.join(scan_dir, file_to_scan)
+        config["search_strings"] = {string_to_find}
+        obj = Scanner(config)
         obj.scan()
-        self.assertTrue(self.contains_result(obj.get_results(), {string_to_find: [file_to_scan]}))
+        actual = obj.get_results()
+        assert expected == actual
 
-    def test_case_insensitive_scan(self):
-        file_to_scan = 'uwaptexit.pas'
-        string_to_find = 'TVisWaptExit.SetCountDown'
-        self.config['scan_root'] = os.path.join(self.DATA_DIR, 'small', file_to_scan)
-        self.config['search_strings'] = {string_to_find.upper()}
-        obj = Scanner(self.config)
+    def test_case_insensitive_scan(self, config):
+        file_to_scan = "uwaptexit.pas"
+        string_to_find = "TVisWaptExit.SetCountDown"
+        scan_dir = os.path.join(DATA_DIR, "small")
+        config["scan_root"] = os.path.join(scan_dir, file_to_scan)
+        config["search_strings"] = {string_to_find.upper()}
+        obj = Scanner(config)
         obj.scan()
-        self.assertFalse(self.contains_result(obj.get_results(), {string_to_find.upper():[
-            file_to_scan]}))
-        self.config['ignore_case'] = True
-        obj2 = Scanner(self.config)
+        assert (
+            self.contains_result(
+                obj.get_results(), {string_to_find.upper(): [file_to_scan]}
+            )
+            is not True
+        )
+        config["ignore_case"] = True
+        obj2 = Scanner(config)
         obj2.scan()
-        self.assertTrue(self.contains_result(obj2.get_results(), {string_to_find:[file_to_scan]},
-                                             True))
+        assert (
+            self.contains_result(
+                obj2.get_results(), {string_to_find: [file_to_scan]}, True
+            )
+            is True
+        )
 
-    def test_binary_file_scan(self):
-        file_to_scan = 'main.o'
-        string_to_find = '(C) Aaron Newman'
-        self.config['scan_root'] = os.path.join(self.DATA_DIR, 'small', file_to_scan)
-        self.config['search_strings'] = {string_to_find}
-        obj = Scanner(self.config)
+    def test_binary_file_scan(self, config):
+        file_to_scan = "main.o"
+        string_to_find = "(C) Aaron Newman"
+        config["scan_root"] = os.path.join(DATA_DIR, "small", file_to_scan)
+        config["search_strings"] = {string_to_find}
+        obj = Scanner(config)
         obj.scan()
-        self.assertTrue(self.contains_result(obj.get_results(), {string_to_find: [file_to_scan]}))
+        assert (
+            self.contains_result(obj.get_results(), {string_to_find: [file_to_scan]})
+            is True
+        )
 
-    def test_dir_scan(self):
-        dir_to_scan = 'small/level1/level2/level3'
-        string_to_find = 'Copyright (c)'
-        desired_results = {string_to_find:['setup.ksh', 'test_helper.tcl', 'test_invoice.py',
-                           'time.c']}
-        self.config['scan_root'] = os.path.join(self.DATA_DIR, dir_to_scan)
-        self.config['search_strings'] = {string_to_find}
-        self.config['ignore_case'] = True
-        obj = Scanner(self.config)
+    def test_dir_scan(self, config):
+        dir_to_scan = "small/level1/level2/level3"
+        string_to_find = "Copyright (c)"
+        desired_results = {
+            string_to_find: [
+                "setup.ksh",
+                "test_helper.tcl",
+                "test_invoice.py",
+                "time.c",
+            ]
+        }
+        config["scan_root"] = os.path.join(DATA_DIR, dir_to_scan)
+        config["search_strings"] = {string_to_find}
+        config["ignore_case"] = True
+        obj = Scanner(config)
         obj.scan()
-        self.assertTrue(self.contains_result(obj.get_results(), desired_results, True))
+        assert self.contains_result(obj.get_results(), desired_results, True) is True
 
-    def test_jar_scan(self):
-        file_to_scan = 'sakai-calendar-util-19.2.jar'
-        string_to_find = 'http://sakaiproject.org/'
-        desired_results = {string_to_find:['pom.xml', 'MANIFEST.MF']}
-        self.config['scan_archives'] = True
-        self.config['scan_root'] = os.path.join(self.DATA_DIR, 'small', file_to_scan)
-        self.config['search_strings'] = {string_to_find}
-        obj = Scanner(self.config)
+    def test_jar_scan(self, config):
+        file_to_scan = "sakai-calendar-util-19.2.jar"
+        string_to_find = "http://sakaiproject.org/"
+        desired_results = {string_to_find: ["pom.xml", "MANIFEST.MF"]}
+        config["scan_archives"] = True
+        config["scan_root"] = os.path.join(DATA_DIR, "small", file_to_scan)
+        config["search_strings"] = {string_to_find}
+        obj = Scanner(config)
         obj.scan()
-        self.assertTrue(self.contains_result(obj.get_results(), desired_results))
+        assert self.contains_result(obj.get_results(), desired_results) is True
 
-    def test_tgz_scan(self):
-        file_to_scan = 'zfs-1.7.0.tgz'
-        string_to_find = 'Copyright (c)'
-        desired_results = {string_to_find:['IDDiskInfoLogger.cpp', 'IDDiskInfoLogger.hpp',
-                                           'IDException.cpp', 'IDFileUtils.mm',
-                                           'IDDAHandlerIdle.hpp']}
-        self.config['scan_archives'] = True
-        self.config['scan_root'] = os.path.join(self.DATA_DIR, 'small', file_to_scan)
-        self.config['search_strings'] = {string_to_find}
-        obj = Scanner(self.config)
+    def test_tgz_scan(self, config):
+        file_to_scan = "zfs-1.7.0.tgz"
+        string_to_find = "Copyright (c)"
+        desired_results = {
+            string_to_find: [
+                "IDDiskInfoLogger.cpp",
+                "IDDiskInfoLogger.hpp",
+                "IDException.cpp",
+                "IDFileUtils.mm",
+                "IDDAHandlerIdle.hpp",
+            ]
+        }
+        config["scan_archives"] = True
+        config["scan_root"] = os.path.join(DATA_DIR, "small", file_to_scan)
+        config["search_strings"] = {string_to_find}
+        obj = Scanner(config)
         obj.scan()
-        self.assertTrue(self.contains_result(obj.get_results(), desired_results))
+        assert self.contains_result(obj.get_results(), desired_results) is True
 
-    def test_tar_bzip2_scan(self):
-        file_to_scan = 'zfs-1.7.0.tar.bzip2'
-        string_to_find = 'Copyright (c)'
-        desired_results = {string_to_find:['IDDiskInfoLogger.cpp', 'IDDiskInfoLogger.hpp',
-                                           'IDException.cpp', 'IDFileUtils.mm',
-                                           'IDDAHandlerIdle.hpp']}
-        self.config['scan_archives'] = True
-        self.config['scan_root'] = os.path.join(self.DATA_DIR, 'small', file_to_scan)
-        self.config['search_strings'] = {string_to_find}
-        obj = Scanner(self.config)
+    def test_tar_bzip2_scan(self, config):
+        file_to_scan = "zfs-1.7.0.tar.bzip2"
+        string_to_find = "Copyright (c)"
+        desired_results = {
+            string_to_find: [
+                "IDDiskInfoLogger.cpp",
+                "IDDiskInfoLogger.hpp",
+                "IDException.cpp",
+                "IDFileUtils.mm",
+                "IDDAHandlerIdle.hpp",
+            ]
+        }
+        config["scan_archives"] = True
+        config["scan_root"] = os.path.join(DATA_DIR, "small", file_to_scan)
+        config["search_strings"] = {string_to_find}
+        obj = Scanner(config)
         obj.scan()
-        self.assertTrue(self.contains_result(obj.get_results(), desired_results))
+        assert self.contains_result(obj.get_results(), desired_results) is True
 
-    def test_txz_scan(self):
-        file_to_scan = 'zfs-1.7.0.txz'
-        string_to_find = 'Copyright (c)'
-        desired_results = {string_to_find:['IDDiskInfoLogger.cpp', 'IDDiskInfoLogger.hpp',
-                                           'IDException.cpp', 'IDFileUtils.mm',
-                                           'IDDAHandlerIdle.hpp']}
-        self.config['scan_archives'] = True
-        self.config['scan_root'] = os.path.join(self.DATA_DIR, 'small', file_to_scan)
-        self.config['search_strings'] = {string_to_find}
-        obj = Scanner(self.config)
+    def test_txz_scan(self, config):
+        file_to_scan = "zfs-1.7.0.txz"
+        string_to_find = "Copyright (c)"
+        desired_results = {
+            string_to_find: [
+                "IDDiskInfoLogger.cpp",
+                "IDDiskInfoLogger.hpp",
+                "IDException.cpp",
+                "IDFileUtils.mm",
+                "IDDAHandlerIdle.hpp",
+            ]
+        }
+        config["scan_archives"] = True
+        config["scan_root"] = os.path.join(DATA_DIR, "small", file_to_scan)
+        config["search_strings"] = {string_to_find}
+        obj = Scanner(config)
         obj.scan()
-        self.assertTrue(self.contains_result(obj.get_results(), desired_results))
+        assert self.contains_result(obj.get_results(), desired_results) is True
 
-    def test_zip_scan(self):
-        file_to_scan = 'zfs-1.7.0.zip'
-        string_to_find = 'Copyright (c)'
-        desired_results = {string_to_find:['IDDiskInfoLogger.cpp', 'IDDiskInfoLogger.hpp',
-                                           'IDException.cpp', 'IDFileUtils.mm',
-                                           'IDDAHandlerIdle.hpp']}
-        self.config['scan_archives'] = True
-        self.config['scan_root'] = os.path.join(self.DATA_DIR, 'small', file_to_scan)
-        self.config['search_strings'] = {string_to_find}
-        obj = Scanner(self.config)
+    def test_zip_scan(self, config):
+        file_to_scan = "zfs-1.7.0.zip"
+        string_to_find = "Copyright (c)"
+        desired_results = {
+            string_to_find: [
+                "IDDiskInfoLogger.cpp",
+                "IDDiskInfoLogger.hpp",
+                "IDException.cpp",
+                "IDFileUtils.mm",
+                "IDDAHandlerIdle.hpp",
+            ]
+        }
+        config["scan_archives"] = True
+        config["scan_root"] = os.path.join(DATA_DIR, "small", file_to_scan)
+        config["search_strings"] = {string_to_find}
+        obj = Scanner(config)
         obj.scan()
-        self.assertTrue(self.contains_result(obj.get_results(), desired_results))
+        assert self.contains_result(obj.get_results(), desired_results) is True
 
-    def test_deep_hierarchy(self):
-        dir_to_scan = 'small/level1'
-        string_to_find = 'Copyright (c)'
-        desired_results = {string_to_find:['setup.ksh', 'test_helper.tcl', 'test_invoice.py',
-                                           'time.c', 'reason.ml', 'rtems.ads', 'screen_title.c',
-                                           'scroll2.tk']}
-        self.config['scan_root'] = os.path.join(self.DATA_DIR, dir_to_scan)
-        self.config['search_strings'] = {string_to_find}
-        self.config['ignore_case'] = True
-        obj = Scanner(self.config)
+    def test_deep_hierarchy(self, config):
+        dir_to_scan = "small/level1"
+        string_to_find = "Copyright (c)"
+        desired_results = {
+            string_to_find: [
+                "setup.ksh",
+                "test_helper.tcl",
+                "test_invoice.py",
+                "time.c",
+                "reason.ml",
+                "rtems.ads",
+                "screen_title.c",
+                "scroll2.tk",
+            ]
+        }
+        config["scan_root"] = os.path.join(DATA_DIR, dir_to_scan)
+        config["search_strings"] = {string_to_find}
+        config["ignore_case"] = True
+        obj = Scanner(config)
         obj.scan()
-        self.assertTrue(self.contains_result(obj.get_results(), desired_results))
+        assert self.contains_result(obj.get_results(), desired_results) is True
 
-    def test_exclusion_file(self):
-        file_to_scan = 'zipped-tar-jar.zip'
-        string_to_find = 'Copyright (c)'
-        exclusion_file = Path(self.TEMP_DIR, 'excl.txt')
-        make_dir_safe(self.TEMP_DIR)
-        with open(exclusion_file, encoding='utf-8', mode='w') as f_h:
-            f_h.write('InFunction.java\nValue.java\n')
-        self.config['exclusions_file'] = exclusion_file
-        desired_results = {string_to_find:['cci_mpf_test_conf_default.vh']}
-        self.config['scan_root'] = os.path.join(self.DATA_DIR, 'small', file_to_scan)
-        self.config['search_strings'] = {string_to_find}
-        self.config['scan_archives'] = True
-        obj = Scanner(self.config)
+    def test_exclusion_file(self, config):
+        file_to_scan = "zipped-tar-jar.zip"
+        string_to_find = "Copyright (c)"
+        exclusion_file = Path(config["temp_dir"], "excl.txt")
+        make_dir_safe(config["temp_dir"])
+        with open(exclusion_file, encoding="utf-8", mode="w") as f_h:
+            f_h.write("InFunction.java\nValue.java\n")
+        config["exclusions_file"] = exclusion_file
+        desired_results = {string_to_find: ["cci_mpf_test_conf_default.vh"]}
+        config["scan_root"] = os.path.join(DATA_DIR, "small", file_to_scan)
+        config["search_strings"] = {string_to_find}
+        config["scan_archives"] = True
+        obj = Scanner(config)
         obj.scan()
-        self.assertTrue(self.contains_result(obj.get_results(), desired_results))
+        assert self.contains_result(obj.get_results(), desired_results) is True
 
-    def test_inner_archive_scan(self):
-        file_to_scan = 'zipped-tar-jar.zip'
-        string_to_find = 'Copyright (c)'
-        desired_results = {string_to_find:['InFunction.java', 'Value.java',
-                                           'cci_mpf_test_conf_default.vh']}
-        self.config['scan_archives'] = True
-        self.config['scan_root'] = os.path.join(self.DATA_DIR, 'small', file_to_scan)
-        self.config['search_strings'] = {string_to_find}
-        obj = Scanner(self.config)
+    def test_inner_archive_scan(self, config):
+        file_to_scan = "zipped-tar-jar.zip"
+        string_to_find = "Copyright (c)"
+        desired_results = {
+            string_to_find: [
+                "InFunction.java",
+                "Value.java",
+                "cci_mpf_test_conf_default.vh",
+            ]
+        }
+        config["scan_archives"] = True
+        config["scan_root"] = os.path.join(DATA_DIR, "small", file_to_scan)
+        config["search_strings"] = {string_to_find}
+        obj = Scanner(config)
         obj.scan()
-        self.assertTrue(self.contains_result(obj.get_results(), desired_results))
+        assert self.contains_result(obj.get_results(), desired_results) is True
 
-    def test_get_csv_output(self):
-        self.config['excel_output'] = False
-        obj = Scanner(self.config)
-        self.assertIsInstance(Output.get_output(obj.HEADERS, obj.get_results(), self.config),
-                              CSVOutput)
+    @staticmethod
+    def test_get_csv_output(config):
+        config["excel_output"] = False
+        obj = Scanner(config)
+        out = Output.get_output(obj.HEADERS, obj.get_results(), config)
+        assert isinstance(out, CSVOutput)
 
-    def test_get_excel_output(self):
-        self.config['excel_output'] = True
-        obj = Scanner(self.config)
-        self.assertIsInstance(Output.get_output(obj.HEADERS, obj.get_results(), self.config),
-                              ExcelOutput)
+    @staticmethod
+    def test_get_excel_output(config):
+        config["excel_output"] = True
+        obj = Scanner(config)
+        out = Output.get_output(obj.HEADERS, obj.get_results(), config)
+        assert isinstance(out, ExcelOutput)
 
-    def test_csv_output(self):
-        file_to_scan = 'zipped-tar-jar.zip'
-        string_to_find = 'Copyright (c)'
-        self.config['scan_archives'] = True
-        self.config['scan_root'] = os.path.join(self.DATA_DIR, 'small', file_to_scan)
-        self.config['search_strings'] = {string_to_find}
-        scanner = Scanner(self.config)
+    def test_csv_output(self, config):
+        file_to_scan = "zipped-tar-jar.zip"
+        string_to_find = "Copyright (c)"
+        config["scan_archives"] = True
+        config["scan_root"] = os.path.join(DATA_DIR, "small", file_to_scan)
+        config["search_strings"] = {string_to_find}
+        scanner = Scanner(config)
         scanner.scan()
-        self.config['excel_output'] = False
-        output = Output.get_output(scanner.HEADERS, scanner.get_results(), self.config)
-        output.output();
-        self.assertTrue(os.path.exists(output.output_file))
-        with open(output.output_file, newline='', encoding='utf-8', mode='r') as csv_file:
-            csv_reader = csv.reader(csv_file, dialect='excel')
+        config["excel_output"] = False
+        output = Output.get_output(scanner.HEADERS, scanner.get_results(), config)
+        output.output()
+        with open(
+            output.output_file, newline="", encoding="utf-8", mode="r"
+        ) as csv_file:
+            csv_reader = csv.reader(csv_file, dialect="excel")
             count = 0
             for row in csv_reader:
                 count += 1
-        self.assertEqual(count-1, len(scanner.get_results()))
+        assert count - 1 == len(scanner.get_results())
 
-    def test_excel_output(self):
-        file_to_scan = 'zipped-tar-jar.zip'
-        string_to_find = 'Copyright (c)'
-        desired_results = {string_to_find:['InFunction.java', 'Value.java',
-                                           'cci_mpf_test_conf_default.vh']}
-        self.config['scan_archives'] = True
-        self.config['scan_root'] = os.path.join(self.DATA_DIR, 'small', file_to_scan)
-        self.config['search_strings'] = {string_to_find}
-        scanner = Scanner(self.config)
+    def test_excel_output(self, config):
+        file_to_scan = "zipped-tar-jar.zip"
+        string_to_find = "Copyright (c)"
+        config["scan_archives"] = True
+        config["scan_root"] = os.path.join(DATA_DIR, "small", file_to_scan)
+        config["search_strings"] = {string_to_find}
+        scanner = Scanner(config)
         scanner.scan()
-        self.config['excel_output'] = True
-        output = Output.get_output(scanner.HEADERS, scanner.get_results(), self.config)
-        output.output();
-        self.assertTrue(os.path.exists(output.output_file))
-        wb = xlrd.open_workbook(output.output_file)
-        sheet = wb.sheet_by_index(0)
-        self.assertEqual(sheet.nrows-1, len(scanner.get_results()))
+        config["excel_output"] = True
+        output = Output.get_output(scanner.HEADERS, scanner.get_results(), config)
+        output.output()
+        wb = openpyxl.load_workbook(output.output_file)
+        sheet = wb.active
+        assert sheet.max_row - 1 == len(scanner.get_results())

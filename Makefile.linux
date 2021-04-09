@@ -1,14 +1,18 @@
-PYTHON        = python
-PROJECT_ROOT  = $(shell pwd)
-VENV          = ${PROJECT_ROOT}/venv-linux
-DIST          = ${PROJECT_ROOT}/dist
-TEMP          = ${PROJECT_ROOT}/tests/temp
-BUILD         = ${PROJECT_ROOT}/build
-OUT_DIR       = ${PROJECT_ROOT}/temp
-EGG_INFO      = ${PROJECT_ROOT}/string_path_search.egg-info
-MAKEFILE_LIST = ${PROJECT_ROOT}/Makefile.linux
+SHELL          = /bin/bash
+PYTHON         = python
+VENV_NAME      = venv-linux
+VENV_ROOT      = /home/$$USER/miniconda3
+VENV_PATH      = ${VENV_ROOT}/envs/${VENV_NAME}
+PROJECT_ROOT   = $(shell pwd)
+DIST           = ${PROJECT_ROOT}/dist
+TEMP           = ${PROJECT_ROOT}/tests/temp
+BUILD          = ${PROJECT_ROOT}/build
+OUT_DIR        = ${PROJECT_ROOT}/temp
+EGG_INFO       = ${PROJECT_ROOT}/string_path_search.egg-info
+MAKEFILE_LIST  = ${PROJECT_ROOT}/Makefile.linux
+CONDA_INIT     = source ${VENV_ROOT}/etc/profile.d/conda.sh
 
-.PHONY: help clean clean-venv install-packages test
+.PHONY: help conda clean clean-venv install-packages test
 
 default:test
 
@@ -28,25 +32,24 @@ clean: ## cleanup build and distribution products
     fi; \
 	done
 
-clean-venv: ## Cleanup this project's Python virtual environment
-	@if [ -d "${VENV}" ]; then \
-		    echo "Cleaning up ${VENV}"; \
-        rm -rf ${VENV}; \
-    fi
+conda:
+	@($(CONDA_INIT); if [ ! -x "${CONDA_EXE}" ]; then \
+		echo "ERROR: Miniconda is not installed. Cannot continue"; \
+		exit 1; \
+	fi)
 
-venv:${VENV} ## Setup a Python virtual environment for this project.
+clean-venv:conda ## Cleanup this project's Python virtual environment
+	@($(CONDA_INIT); if [ -d ${VENV_PATH} ]; then \
+		conda env remove --name ${VENV_NAME}; \
+    fi)
 
-${VENV}:
-	${PYTHON} -m venv ${VENV}
+venv: ## Setup a Python virtual environment for this project.
+	($(CONDA_INIT); if [ ! -d ${VENV_PATH} ]; then \
+		${CONDA_EXE} env create -f environment.yml; \
+	fi)
 
-install-packages:venv ## Install third party packages required to build this project
-	. ${VENV}/bin/activate; \
-    ${PYTHON} -m pip install --upgrade pip; \
-    ${PYTHON} -m pip install --upgrade pylint nose2 setuptools wheel twine
-
-install:install-packages ## Run setup.py build and install
-	. ${VENV}/bin/activate; ${PYTHON} setup.py install
+install:venv ## Run setup.py build and install
+	($(CONDA_INIT); conda activate ${VENV_NAME}; ${PYTHON} setup.py install)
 
 test:install ## Use nose2 to run the test scripts.
-	. ${VENV}/bin/activate; ${PYTHON} -m nose2 --verbose
-
+	($(CONDA_INIT); conda activate ${VENV_NAME}; ${PYTHON} -m pytest --ignore tests/data --verbose)
