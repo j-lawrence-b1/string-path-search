@@ -4,7 +4,6 @@
 """Scanner class unit tests."""
 
 import csv
-from hashlib import md5
 import logging
 import os
 from pathlib import Path
@@ -12,7 +11,14 @@ import pytest
 import shutil
 import openpyxl
 
-from .context import CSVOutput, ExcelOutput, Output, Scanner, make_dir_safe
+from .context import (
+    CSVOutput,
+    ExcelOutput,
+    Output,
+    Scanner,
+    calculate_file_md5,
+    make_dir_safe,
+)
 
 DATA_DIR = "tests/data"
 OUTPUT_DIR = "temp"
@@ -21,8 +27,7 @@ TEMP_DIR = "tests/temp"
 
 def generate_scan_result(string, path, file):
     """Helper function to generate a Scanner result tuple."""
-    with open(os.path.join(path, file), mode="rb") as ffh:
-        return (string, md5(ffh.read()).hexdigest(), file, path)
+    return (string, calculate_file_md5(os.path.join(path, file)), file, path)
 
 
 class TestScanner:

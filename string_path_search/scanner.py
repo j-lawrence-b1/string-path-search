@@ -19,22 +19,30 @@ import xlsxwriter
 from PIL import Image
 
 # Import project modules.
-from .utils import calculate_md5, LOGGER, make_dir_safe, random_string
+from .utils import (
+    calculate_file_md5,
+    calculate_md5,
+    LOGGER,
+    make_dir_safe,
+    random_string,
+)
 
 # Define constants.
-DIR_REGEX = re.compile(r'[/]$')
-JAR_REGEX = re.compile(r'\.jar$')
-TAR_REGEX = re.compile(r'\.(?:tar|tar.gz|tgz|tar.bzip2|tar.bz2|tbz2|txz|tar.xz)$')
-ZIP_REGEX = re.compile(r'\.zip$')
-ARCH_REGEX = re.compile(r'\.(?:cab|cpio|ear|jar|rpm|tar|tar.gz|tgz|tar.bzip2'
-                        r'|tar.bz2|tbz2|tgz|tar.xz|war|zip)$')
+DIR_REGEX = re.compile(r"[/]$")
+JAR_REGEX = re.compile(r"\.jar$")
+TAR_REGEX = re.compile(r"\.(?:tar|tar.gz|tgz|tar.bzip2|tar.bz2|tbz2|txz|tar.xz)$")
+ZIP_REGEX = re.compile(r"\.zip$")
+ARCH_REGEX = re.compile(
+    r"\.(?:cab|cpio|ear|jar|rpm|tar|tar.gz|tgz|tar.bzip2"
+    r"|tar.bz2|tbz2|tgz|tar.xz|war|zip)$"
+)
 
 # pylint: disable=R0902
 # R0902 = too-many-instance-attributes
 class Scanner:
     """Class to scan a directory tree for a set of strings"""
 
-    HEADERS = ('String', 'MD5 Digest', 'Name', 'Location')
+    HEADERS = ("String", "MD5 Digest", "Name", "Location")
 
     def __init__(self, configs):
         """
@@ -43,29 +51,30 @@ class Scanner:
         Parameters:
             configs -- Dictionary of settings populated from the command line by parse_args()
         """
-        self.scan_root = configs['scan_root']
-        self.temp_dir = configs['temp_dir']
-        self.ignore_case = configs['ignore_case']
+        self.scan_root = configs["scan_root"]
+        self.temp_dir = configs["temp_dir"]
+        self.ignore_case = configs["ignore_case"]
         self.search_strings = []
-        for search_string in configs['search_strings']:
-            normal_string = unicodedata.normalize('NFKD', search_string)
+        for search_string in configs["search_strings"]:
+            normal_string = unicodedata.normalize("NFKD", search_string)
             if self.ignore_case:
                 normal_string = normal_string.casefold()
             self.search_strings.append((normal_string, search_string))
-        self.exclusions = configs['exclusions']
-        self.scan_archives = configs['scan_archives']
+        self.exclusions = configs["exclusions"]
+        self.scan_archives = configs["scan_archives"]
         self.scan_results = {}
         self.stats = {}
         if sys.version_info[0] + sys.version_info[1] / 10 < 3.4:
             LOGGER.error("ERROR: This script requires Python 3.4 or greater.")
             sys.exit(-1)
-        if not os.path.exists(configs['scan_root']):
-            raise ValueError("scan_root {0} does not exist".format(
-                configs['scan_root']))
+        if not os.path.exists(configs["scan_root"]):
+            raise ValueError(
+                "scan_root {0} does not exist".format(configs["scan_root"])
+            )
         if not self.search_strings:
             raise ValueError("No strings to search!")
         if self.scan_archives:
-            make_dir_safe(configs['temp_dir'])
+            make_dir_safe(configs["temp_dir"])
 
     def _walk(self, thing=None, parent=None):
         """Walk a tree based on thing."""
@@ -73,7 +82,9 @@ class Scanner:
             thing = self.scan_root
         if os.path.isdir(thing):
             yield from self._dir_walk(thing)
-        elif self.scan_archives and (ZIP_REGEX.search(thing) or JAR_REGEX.search(thing)):
+        elif self.scan_archives and (
+            ZIP_REGEX.search(thing) or JAR_REGEX.search(thing)
+        ):
             yield from self._zip_walk(thing, parent)
         elif self.scan_archives and TAR_REGEX.search(thing):
             yield from self._tar_walk(thing, parent)
@@ -85,15 +96,19 @@ class Scanner:
             return
         else:
             try:
-                with open(thing, 'rb') as fid:
+                with open(thing, "rb") as fid:
                     file_bytes = fid.read()
                     location = self.scan_root
                     if thing.startswith(location):
                         location = os.path.dirname(thing)
                     else:
                         location = os.path.join(location, os.path.dirname(thing))
-                    yield (os.path.basename(thing), location,
-                           calculate_md5(file_bytes), file_bytes)
+                    yield (
+                        os.path.basename(thing),
+                        location,
+                        calculate_md5(file_bytes),
+                        file_bytes,
+                    )
             except FileNotFoundError:
                 LOGGER.error("Can't open file=%s", thing)
                 return
@@ -114,11 +129,14 @@ class Scanner:
             zip_file -- The full path to the .zip file to scan.
             parent - The root for the extraction if this is an inner archive.
         """
-        archive_type = 'jar' if JAR_REGEX.search(zip_file) else 'zip'
+        archive_type = "jar" if JAR_REGEX.search(zip_file) else "zip"
         LOGGER.info("Walking %s file=%s", archive_type, zip_file)
         # Pseudo-path, don't use os.path.join().
-        parent = '/'.join([parent, os.path.basename(zip_file)]) if parent \
+        parent = (
+            "/".join([parent, os.path.basename(zip_file)])
+            if parent
             else os.path.basename(zip_file)
+        )
         with zipfile.ZipFile(zip_file) as zip_archive:
             for info in zip_archive.infolist():
                 name = info.filename
@@ -137,9 +155,12 @@ class Scanner:
                     # pylint: disable=W0703
                     # W0703 = broad-except
                     except BaseException:
-                        LOGGER.error("Caught an exception of type=%s "
-                                     "while processing inner archive %s",
-                                     sys.exc_info()[0], name)
+                        LOGGER.error(
+                            "Caught an exception of type=%s "
+                            "while processing inner archive %s",
+                            sys.exc_info()[0],
+                            name,
+                        )
                         continue
                     # pylint: enable=W0703
                     finally:
@@ -150,15 +171,22 @@ class Scanner:
                         with zip_archive.open(name) as fid:
                             # Pseudo-path, don't use os.path.join().
                             file_bytes = fid.read()
-                            yield (os.path.basename(name),
-                                   '/'.join([self.scan_root, parent,
-                                             os.path.dirname(name)]),
-                                   calculate_md5(file_bytes), file_bytes)
+                            yield (
+                                os.path.basename(name),
+                                "/".join(
+                                    [self.scan_root, parent, os.path.dirname(name)]
+                                ),
+                                calculate_md5(file_bytes),
+                                file_bytes,
+                            )
                     # pylint: disable=W0703
                     # W0703 = broad-except
                     except BaseException:
-                        LOGGER.error("Caught an exception of type=%s: %s",
-                                     sys.exc_info()[0], sys.exc_info()[1])
+                        LOGGER.error(
+                            "Caught an exception of type=%s: %s",
+                            sys.exc_info()[0],
+                            sys.exc_info()[1],
+                        )
                     # pylint: enable=W0703
 
     def _tar_walk(self, tar_file, parent=None):
@@ -171,9 +199,12 @@ class Scanner:
         """
         LOGGER.info("Walking tar file=%s", tar_file)
         # Pseudo-path, don't use os.path.join().
-        parent = '/'.join([parent, os.path.basename(tar_file)]) if parent \
+        parent = (
+            "/".join([parent, os.path.basename(tar_file)])
+            if parent
             else os.path.basename(tar_file)
-        with tarfile.open(tar_file, 'r') as tar_archive:
+        )
+        with tarfile.open(tar_file, "r") as tar_archive:
             for entry in tar_archive:
                 if not entry.isreg():
                     continue
@@ -190,9 +221,12 @@ class Scanner:
                     # pylint: disable=W0703
                     # W0703 = broad-except
                     except BaseException:
-                        LOGGER.error("Caught an exception of type=%s "
-                                     "while processing inner archive=%s",
-                                     sys.exc_info()[0], entry.name)
+                        LOGGER.error(
+                            "Caught an exception of type=%s "
+                            "while processing inner archive=%s",
+                            sys.exc_info()[0],
+                            entry.name,
+                        )
                         continue
                     # pylint: enable=W0703
                     finally:
@@ -203,14 +237,22 @@ class Scanner:
                     try:
                         with tar_archive.extractfile(entry) as fid:
                             file_bytes = fid.read()
-                            yield (os.path.basename(entry.name),
-                                   '/'.join([self.scan_root, parent, os.path.dirname(entry.name)]),
-                                   calculate_md5(file_bytes), file_bytes)
+                            yield (
+                                os.path.basename(entry.name),
+                                os.path.join(
+                                    self.scan_root, parent, os.path.dirname(entry.name)
+                                ),
+                                calculate_md5(file_bytes),
+                                file_bytes,
+                            )
                     # pylint: disable=W0703
                     # W0703 = broad-except
                     except BaseException:
-                        LOGGER.error("Caught an exception of type=%s while extracting file=%s",
-                                     sys.exc_info()[0], entry.name)
+                        LOGGER.error(
+                            "Caught an exception of type=%s while extracting file=%s",
+                            sys.exc_info()[0],
+                            entry.name,
+                        )
                     # pylint: enable=W0703
 
     def _scan_file(self, file_bytes):
@@ -222,11 +264,9 @@ class Scanner:
         """
         # Strip out all of the valid utf-8 characters from a byte stream
         # and normalize the result.
-        file_str = unicodedata.normalize('NFKD',
-                                         codecs.decode(file_bytes,
-                                                       'utf-8',
-                                                       errors='ignore')
-                                         )
+        file_str = unicodedata.normalize(
+            "NFKD", codecs.decode(file_bytes, "utf-8", errors="ignore")
+        )
         if not file_str:
             return
 
@@ -239,30 +279,39 @@ class Scanner:
     def scan(self):
         """Scan scan_root and print matches."""
 
-
         LOGGER.info("Scanning %s", self.scan_root)
 
         self.scan_results = {}
         md5s = set()
-        self.stats = {'files_scanned': 0, 'files_matched': 0}
+        self.stats = {"files_scanned": 0, "files_matched": 0}
         for name, path, md5, file_bytes in self._walk(None):
-            self.stats['files_scanned'] += 1
-            if self.stats['files_scanned'] % 1000 == 0:
-                LOGGER.info("Matched %d of %d files scanned so far.",
-                            self.stats['files_matched'],
-                            self.stats['files_scanned'])
+            self.stats["files_scanned"] += 1
+            if self.stats["files_scanned"] % 1000 == 0:
+                LOGGER.info(
+                    "Matched %d of %d files scanned so far.",
+                    self.stats["files_matched"],
+                    self.stats["files_scanned"],
+                )
             for matched_string in self._scan_file(file_bytes):
                 if matched_string not in self.scan_results.keys():
                     self.scan_results[matched_string] = []
                 self.scan_results[matched_string].append((name, md5, path))
-                LOGGER.debug("Matched String=%s, Name=%s, MD5 Digest=%s, Location=%s",
-                             matched_string, name, md5, path)
+                LOGGER.debug(
+                    "Matched String=%s, Name=%s, MD5 Digest=%s, Location=%s",
+                    matched_string,
+                    name,
+                    md5,
+                    path,
+                )
                 if md5 not in md5s:
                     md5s.add(md5)
-                    self.stats['files_matched'] += 1
+                    self.stats["files_matched"] += 1
 
-        LOGGER.info("Scan complete. Matched %d of %d files.",
-                    self.stats['files_matched'], self.stats['files_scanned'])
+        LOGGER.info(
+            "Scan complete. Matched %d of %d files.",
+            self.stats["files_matched"],
+            self.stats["files_scanned"],
+        )
 
     def get_results(self):
         """Flatten search_results into a list of tuples."""
@@ -295,21 +344,22 @@ class Output:
 
         """
         self.rows = rows
-        self.output_file = configs['output_file']
+        self.output_file = configs["output_file"]
         self.header = header
-        self.branding_logo = configs['branding_logo']
-        self.branding_text = configs['branding_text']
+        self.branding_logo = configs["branding_logo"]
+        self.branding_text = configs["branding_text"]
 
     @classmethod
     def get_output(cls, headers, rows, configs):
         """Factory method for constructing the output object."""
-        configs['output_file'] = os.path.join(configs['output_dir'],
-                                              '-'.join(["scan", strftime('%Y%m%d%H%M')]))
-        if configs['excel_output']:
-            configs['output_file'] += ".xlsx"
+        configs["output_file"] = os.path.join(
+            configs["output_dir"], "-".join(["scan", strftime("%Y%m%d%H%M")])
+        )
+        if configs["excel_output"]:
+            configs["output_file"] += ".xlsx"
             return ExcelOutput(headers, rows, configs)
 
-        configs['output_file'] += ".csv"
+        configs["output_file"] += ".csv"
         return CSVOutput(headers, rows, configs)
 
     @abstractmethod
@@ -334,19 +384,21 @@ class CSVOutput(Output):
                 LOGGER.error("Can't open file=%s", self.output_file)
                 raise
         LOGGER.info("Writing output to %s", self.output_file)
-        with open(self.output_file, newline='', encoding='utf-8', mode='w') as out_fh:
-            csv_writer = csv.writer(out_fh, dialect='excel')
+        with open(self.output_file, newline="", encoding="utf-8", mode="w") as out_fh:
+            csv_writer = csv.writer(out_fh, dialect="excel")
             if self.branding_text:
                 csv_writer.writerow(self.branding_text)
             csv_writer.writerow(self.header)
             for row in self.rows:
                 csv_writer.writerow(row)
 
+
 class ExcelOutput(Output):
     """
     Outputter for Microsoft Excel (.xlsx) output.
 
     """
+
     CELL_BUFFER_CHARS = 1
     CHAR_PIXEL_WIDTH = 8.63
     CHAR_PIXEL_HEIGHT = 16
@@ -392,4 +444,6 @@ class ExcelOutput(Output):
 
         LOGGER.info("Writing output to %s", self.output_file)
         workbook.close()
+
+
 # pylint: enable=R0903
