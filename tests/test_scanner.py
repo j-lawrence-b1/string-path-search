@@ -4,6 +4,7 @@
 """Scanner class unit tests."""
 
 import csv
+from hashlib import md5
 import logging
 import os
 from pathlib import Path
@@ -16,6 +17,12 @@ from .context import CSVOutput, ExcelOutput, Output, Scanner, make_dir_safe
 DATA_DIR = "tests/data"
 OUTPUT_DIR = "temp"
 TEMP_DIR = "tests/temp"
+
+
+def generate_scan_result(string, path, file):
+    """Helper function to generate a Scanner result tuple."""
+    with open(os.path.join(path, file), mode="rb") as ffh:
+        return (string, md5(ffh.read()).hexdigest(), file, path)
 
 
 class TestScanner:
@@ -91,12 +98,11 @@ class TestScanner:
         assert isinstance(obj, Scanner)
 
     @staticmethod
-    def test_text_file_scan(config):
+    def test_case_sensitive_scan_exact_match(config):
         file_to_scan = "uwaptexit.pas"
         string_to_find = "TVisWaptExit.SetCountDown"
-        md5 = "7cc0d44415e378de57ac0f479456fbf4"
         scan_dir = os.path.join(DATA_DIR, "small")
-        expected = [(string_to_find, md5, file_to_scan, scan_dir)]
+        expected = [generate_scan_result(string_to_find, scan_dir, file_to_scan)]
         config["scan_root"] = os.path.join(scan_dir, file_to_scan)
         config["search_strings"] = {string_to_find}
         obj = Scanner(config)
@@ -104,59 +110,76 @@ class TestScanner:
         actual = obj.get_results()
         assert expected == actual
 
-    def test_case_insensitive_scan(self, config):
+    def test_case_sensitive_scan_fuzzy_match(self, config):
+        file_to_scan = "uwaptexit.pas"
+        string_to_find = "TVisWaptExit.SetCountDown".upper()
+        scan_dir = os.path.join(DATA_DIR, "small")
+        expected = []
+        config["scan_root"] = os.path.join(scan_dir, file_to_scan)
+        config["search_strings"] = {string_to_find}
+        obj = Scanner(config)
+        obj.scan()
+        actual = obj.get_results()
+        expected == actual
+
+    def test_case_insensitive_scan_exact_match(self, config):
         file_to_scan = "uwaptexit.pas"
         string_to_find = "TVisWaptExit.SetCountDown"
         scan_dir = os.path.join(DATA_DIR, "small")
+        expected = [generate_scan_result(string_to_find, scan_dir, file_to_scan)]
         config["scan_root"] = os.path.join(scan_dir, file_to_scan)
-        config["search_strings"] = {string_to_find.upper()}
+        config["search_strings"] = {string_to_find}
+        config["ignore_case"] = True
         obj = Scanner(config)
         obj.scan()
-        assert (
-            self.contains_result(
-                obj.get_results(), {string_to_find.upper(): [file_to_scan]}
-            )
-            is not True
-        )
+        actual = obj.get_results()
+        expected == actual
+
+    def test_case_insensitive_scan_fuzzy_match(self, config):
+        file_to_scan = "uwaptexit.pas"
+        string_to_find = "TVisWaptExit.SetCountDown".upper()
+        scan_dir = os.path.join(DATA_DIR, "small")
+        expected = [generate_scan_result(string_to_find, scan_dir, file_to_scan)]
+        config["scan_root"] = os.path.join(scan_dir, file_to_scan)
+        config["search_strings"] = {string_to_find}
         config["ignore_case"] = True
-        obj2 = Scanner(config)
-        obj2.scan()
-        assert (
-            self.contains_result(
-                obj2.get_results(), {string_to_find: [file_to_scan]}, True
-            )
-            is True
-        )
+        obj = Scanner(config)
+        obj.scan()
+        actual = obj.get_results()
+        expected == actual
 
     def test_binary_file_scan(self, config):
         file_to_scan = "main.o"
         string_to_find = "(C) Aaron Newman"
-        config["scan_root"] = os.path.join(DATA_DIR, "small", file_to_scan)
+        scan_dir = os.path.join(DATA_DIR, "small")
+        expected = [generate_scan_result(string_to_find, scan_dir, file_to_scan)]
+        config["scan_root"] = os.path.join(scan_dir, file_to_scan)
         config["search_strings"] = {string_to_find}
         obj = Scanner(config)
         obj.scan()
-        assert (
-            self.contains_result(obj.get_results(), {string_to_find: [file_to_scan]})
-            is True
-        )
+        actual = obj.get_results()
+        assert expected == actual
 
     def test_dir_scan(self, config):
-        dir_to_scan = "small/level1/level2/level3"
+        files_to_scan = [
+            "setup.ksh",
+            "test_helper.tcl",
+            "test_invoice.py",
+            "time.c",
+        ]
+        scan_dir = os.path.join(DATA_DIR, "small/level1/level2/level3")
         string_to_find = "Copyright (c)"
-        desired_results = {
-            string_to_find: [
-                "setup.ksh",
-                "test_helper.tcl",
-                "test_invoice.py",
-                "time.c",
-            ]
-        }
-        config["scan_root"] = os.path.join(DATA_DIR, dir_to_scan)
+        expected = [
+            generate_scan_result(string_to_find, scan_dir, file)
+            for file in files_to_scan
+        ]
+        config["scan_root"] = scan_dir
         config["search_strings"] = {string_to_find}
         config["ignore_case"] = True
         obj = Scanner(config)
         obj.scan()
-        assert self.contains_result(obj.get_results(), desired_results, True) is True
+        actual = obj.get_results()
+        assert sorted(expected) == sorted(actual)
 
     def test_jar_scan(self, config):
         file_to_scan = "sakai-calendar-util-19.2.jar"
@@ -168,6 +191,22 @@ class TestScanner:
         obj = Scanner(config)
         obj.scan()
         assert self.contains_result(obj.get_results(), desired_results) is True
+
+    # def test_jar_scan(self, config):
+    #    file_to_scan = "sakai-calendar-util-19.2.jar"
+    #    string_to_find = "http://sakaiproject.org/"
+    #    scan_dir = os.path.join(DATA_DIR, "small")
+    #    archive_path = os.path.join(
+    #        scan_dir, file_to_scan, "sakai-calendar-util-19.2.jar/META-INF"
+    #    )
+    #    expected = [generate_scan_result(string_to_find, archive_path, "MANIFEST.MF")]
+    #    config["scan_archives"] = True
+    #    config["scan_root"] = os.path.join(scan_dir, file_to_scan)
+    #    config["search_strings"] = {string_to_find}
+    #    obj = Scanner(config)
+    #    obj.scan()
+    #    actual = obj.get_results()
+    #    assert expected == actual
 
     def test_tgz_scan(self, config):
         file_to_scan = "zfs-1.7.0.tgz"
