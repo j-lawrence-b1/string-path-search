@@ -91,27 +91,31 @@ class Scanner:
         elif ARCH_REGEX.search(thing):
             if self.scan_archives:
                 LOGGER.warning("Skipping unsupported archive %s", thing)
+            yield from self._file_walk(thing)
         elif not os.path.isfile(thing):
-            LOGGER.warning("Thing '%s' is neither a directory nor is it a file", thing)
+            LOGGER.warning("Thing '%s' is neither a directory nor a file", thing)
             return
         else:
-            try:
-                with open(thing, "rb") as fid:
-                    file_bytes = fid.read()
-                    location = self.scan_root
-                    if thing.startswith(location):
-                        location = os.path.dirname(thing)
-                    else:
-                        location = os.path.join(location, os.path.dirname(thing))
-                    yield (
-                        os.path.basename(thing),
-                        location,
-                        calculate_md5(file_bytes),
-                        file_bytes,
-                    )
-            except FileNotFoundError:
-                LOGGER.error("Can't open file=%s", thing)
-                return
+            yield from self._file_walk(thing)
+
+    def _file_walk(self, thing):
+        try:
+            with open(thing, "rb") as fid:
+                file_bytes = fid.read()
+                location = self.scan_root
+                if thing.startswith(location):
+                    location = os.path.dirname(thing)
+                else:
+                    location = os.path.join(location, os.path.dirname(thing))
+                yield (
+                    os.path.basename(thing),
+                    location,
+                    calculate_md5(file_bytes),
+                    file_bytes,
+                )
+        except FileNotFoundError:
+            LOGGER.error("Can't open file=%s", thing)
+            return
 
     def _dir_walk(self, path):
         """Walk a directory."""
@@ -132,17 +136,17 @@ class Scanner:
         archive_type = "jar" if JAR_REGEX.search(zip_file) else "zip"
         LOGGER.info("Walking %s file=%s", archive_type, zip_file)
         # Pseudo-path, don't use os.path.join().
-        parent = (
-            "/".join([parent, os.path.basename(zip_file)])
-            if parent
-            else os.path.basename(zip_file)
-        )
+        if parent:
+            parent = "/".join([parent, os.path.basename(zip_file)])
+        else:
+            parent = os.path.basename(zip_file)
         with zipfile.ZipFile(zip_file) as zip_archive:
             for info in zip_archive.infolist():
                 name = info.filename
-                if DIR_REGEX.search(name):
-                    continue
-                elif os.path.basename(name).casefold() in self.exclusions:
+                if (
+                    DIR_REGEX.search(name)
+                    or os.path.basename(name).casefold() in self.exclusions
+                ):
                     continue
                 elif ARCH_REGEX.search(name):
                     extract_dir = os.path.join(self.temp_dir, random_string())
